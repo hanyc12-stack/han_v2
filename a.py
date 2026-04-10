@@ -224,4 +224,3 @@ if df is not None:
     components.html(chart_html, height=850)
 else:
     st.error("데이터 로딩 실패")
-```
