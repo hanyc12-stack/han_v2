@@ -1,13 +1,3 @@
-Ran command: `python -c "import pandas as pd; import requests; import io; SHEET_ID='1WqEb6mn8eFH41mCj3BrrH_pSZMRECFR4qCHI1PmjeBg'; GID='1550923272'; CSV_URL=f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&range=A:Z&gid={GID}'; resp=requests.get(CSV_URL); df=pd.read_csv(io.StringIO(resp.text), header=None); print('908 location:'); print(df.stack()[df.stack().astype(str).str.contains('908')].index.tolist())"`
-Edited implementation_plan.md
-Edited task.md
-Edited a.py
-Viewed a.py:1-346
-
-<p>투자 시작일 부분에서 엉뚱한 금액(2,293,272)이 표시되던 문제를 해결하고(908일로 수정), 모바일 환경에서도 가독성이 좋게 디자인을 전면 최적화했습니다.</p>
-<p>또한, 이전 요청사항이었던 <strong>종목별 수익금 비교 막대 그래프</strong>를 종목별 비중 아래에 배치하여 완성형 대시보드를 구축했습니다.</p>
-
-```python
 import streamlit as st
 import pandas as pd
 import requests
