@@ -1,8 +1,3 @@
-파일 끝부분에 포함된 기호(```)까지 복사되어 **구문 오류(Syntax Error)**가 발생했습니다.
-
-아래는 **설명이나 기호 없이 코드만 깔끔하게 정리한 내용**입니다. 코드 블록 우측 상단의 **'Copy'** 버튼을 눌러 내용만 복사하신 후 `a.py`에 덮어쓰기 해주세요. (기존 내용 전체를 지우고 붙여넣으시면 됩니다.)
-
-```python
 import streamlit as st
 import pandas as pd
 import requests
