@@ -96,4 +96,80 @@ if df is not None:
     
     # 통계 및 날짜
     win_cnt = parse_val(df.iloc[9, 16])
-    loss
+    loss_cnt = parse_val(df.iloc[9, 17])
+    invest_start = str(df.iloc[15, 15])
+    invest_days = str(df.iloc[15, 17])
+    real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
+
+    # UI 렌더링
+    st.markdown(f"""
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; padding:20px 0;">
+        <div>
+            <div style="color:#64748b; font-size:0.9rem;">총 자산 (Hstock V1.1)</div>
+            <div style="font-size:2.8rem; font-weight:800; color:#0f172a;">{int(real_total):,}원</div>
+        </div>
+        <div style="text-align:right; color:#64748b;">
+            <div style="font-size:0.9rem;">투자 정보</div>
+            <div style="font-size:1.1rem; font-weight:600; color:#1e293b;">{invest_start} | <span style="color:#6366f1">{invest_days}</span></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("주식 평가금액", f"{int(sm['eval']):,}원")
+    m2.metric("매수금액", f"{int(sm['buy']):,}원")
+    m3.metric("누적 수익금", f"{int(sm['profit']):,}원", sm['rate'])
+    m4.metric("금일 변동액", f"{int(sm['daily']):+,}원")
+
+    m5, m6, m7, m8 = st.columns(4)
+    m5.metric("총 종목수", f"{len(stocks)}종목")
+    win_p = (win_cnt/len(stocks)*100) if len(stocks)>0 else 0
+    m6.metric("수익 종목", f"{int(win_cnt)}", f"{win_p:.1f}%")
+    loss_p = (loss_cnt/len(stocks)*100) if len(stocks)>0 else 0
+    m7.metric("손실 종목", f"{int(loss_cnt)}", f"-{loss_p:.1f}%", delta_color="inverse")
+    m8.metric("누적 총수익", f"{int(sm['accum']):,}원")
+
+    st.divider()
+
+    col_l, col_r = st.columns([2, 1])
+    with col_l:
+        st.markdown('<div class="custom-card"><div class="card-title">보유 종목 현황</div>', unsafe_allow_html=True)
+        t_df = stocks[['Name', 'Weight', 'CurPrice', 'AvgPrice', 'Rate']].copy()
+        t_df.columns = ['종목명', '비중', '현재가', '평단가', '수익률']
+        st.dataframe(t_df, hide_index=True, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="custom-card"><div class="card-title">종목별 수익금</div>', unsafe_allow_html=True)
+        c_data = stocks[stocks['Profit'] != 0].copy()
+        c_data['Profit'] = c_data['Profit'].apply(parse_val)
+        st.bar_chart(data=c_data, x='Name', y='Profit', color="#6366f1")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_r:
+        st.markdown('<div class="custom-card"><div class="card-title">자산/증권사 비중</div>', unsafe_allow_html=True)
+        # 자산 비중
+        asset_df = df.iloc[1:5, 15:18].copy()
+        for _, r in asset_df.iterrows():
+            if pd.isna(r[15]): continue
+            p = parse_val(r[17])
+            st.write(f"**{r[15]}** ({p}%)")
+            # 에러 방지: 0.0 ~ 1.0 사이로 값 고정
+            st.progress(max(0.0, min(p/100.0, 1.0)))
+        
+        st.divider()
+        # 증권사 비중
+        br_df = df.iloc[1:15, 11:13].copy()
+        for _, r in br_df.iterrows():
+            if pd.isna(r[11]) or r[11] == "비중" or r[11] == "증권사": continue
+            p = parse_val(r[12])
+            st.write(f"**{r[11]}** ({p}%)")
+            st.progress(max(0.0, min(p/100.0, 1.0)))
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        st.metric("현금 보유량", f"{int(sm['cash']):,}원")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.caption(f"동기화 시간: {pd.Timestamp.now().strftime('%H:%M:%S')}")
+else:
+    st.error("데이터 로딩 실패")
