@@ -79,13 +79,12 @@ if df is not None:
         "daily": parse_numeric(row_total[7]),
         "accum": parse_numeric(row_total[8]),
         "cash":  parse_numeric(row_sub[3]),
-        "total": total_asset_q6 if total_asset_q6 > 0 else parse_numeric(row_total[13]),
-    }
-    real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
-
-    # --- UI 템플릿 ---
+        "total":    # --- UI 템플릿 ---
     # 색상 팔레트 정의 (이미지 참고)
     brokerage_colors = ['#3266AD', '#7F77DD', '#1D9E75', '#EAB308', '#D85A30', '#DB2777', '#888780', '#6366F1', '#10B981', '#F59E0B']
+    
+    # 제외 키워드 리스트 (헤더/합계 행 필터링)
+    exclude_list = ["비중", "유형", "항목", "증권사", "Total", "합계", "계", "total", "합", "종목"]
 
     st.markdown(f"""
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -108,7 +107,7 @@ if df is not None:
         .header {{ display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }}
         .header-left .total {{ font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }}
         .metric-grid {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }}
-        .metric-card {{ background: #ebebea; border-radius: 12px; padding: 16px; }}
+        .metric-card {{ background: #ebebea; border-radius: 12px; padding: 16px; transition: all 0.2s; }}
         .metric-label {{ font-size: 12px; color: #888780; margin-bottom: 6px; font-weight: 500; }}
         .metric-value {{ font-size: 22px; font-weight: 700; }}
         .metric-sub {{ font-size: 13px; margin-top: 4px; font-weight: 500; }}
@@ -128,8 +127,8 @@ if df is not None:
         .bar-row {{ display: flex; align-items: center; gap: 16px; margin-bottom: 18px; font-size: 14px; position: relative; }}
         .bar-label {{ width: 110px; color: #666; flex-shrink: 0; font-weight: 500; font-size: 14px; }}
         .bar-track {{ flex: 1; height: 10px; background: #f0f0f0; border-radius: 10px; overflow: visible; position: relative; }}
-        .bar-fill {{ height: 100%; border-radius: 10px; position: relative; }}
-        /* 바 끝에 점 효과 (선택사항) */
+        .bar-fill {{ height: 100%; border-radius: 10px; position: relative; transition: width 0.8s ease; }}
+        /* 바 끝에 점 효과 */
         .bar-fill::after {{
             content: ''; position: absolute; right: -2px; top: -1px; width: 12px; height: 12px; 
             border-radius: 50%; background: inherit; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -185,11 +184,19 @@ if df is not None:
         <div style="display:flex;flex-direction:column;gap:20px;">
           <div class="card">
             <div class="card-title">자산 유형별 비중</div>
-            {''.join([f"<div class='bar-row'><div class='bar-label'>{r[15]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[17])}%;background:{'#3266AD' if r[15]=='국내주식' else '#1D9E75' if r[15]=='안전자산' else '#7F77DD' if r[15]=='해외성장' else '#D85A30'};'></div></div><div class='bar-pct'>{r[17]}</div></div>" for _, r in df.iloc[0:6, 15:18].iterrows() if not pd.isna(r[15]) and r[15] not in ["비중", "유형", "항목"]])}
+            {''.join([f"<div class='bar-row'><div class='bar-label'>{r[15]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[17])}%;background:{'#3266AD' if r[15]=='국내주식' else '#1D9E75' if r[15]=='안전자산' else '#7F77DD' if r[15]=='해외성장' else '#D85A30'};'></div></div><div class='bar-pct'>{r[17]}</div></div>" for _, r in df.iloc[0:10, 15:18].iterrows() if not pd.isna(r[15]) and r[15] not in exclude_list and parse_numeric(r[17]) <= 100])}
           </div>
           <div class="card">
             <div class="card-title">증권사별 비중</div>
-            {''.join([f"<div class='bar-row'><div class='bar-label'>{r[11]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[13])}%;background:{brokerage_colors[i % len(brokerage_colors)]};'></div></div><div class='bar-pct'>{r[13]}</div></div>" for i, r in df.iloc[0:18, [11, 13]].iterrows() if not pd.isna(r[11]) and r[11] not in ["비중", "증권사", "항목"]])}
+            {''.join([f"<div class='bar-row'><div class='bar-label'>{r[11]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[12])}%;background:{brokerage_colors[i % len(brokerage_colors)]};'></div></div><div class='bar-pct'>{r[12]}</div></div>" for i, r in df.iloc[0:20, [11, 12]].iterrows() if not pd.isna(r[11]) and r[11] not in exclude_list and parse_numeric(r[12]) <= 100])}
+          </div>
+          <div class="card" style="padding: 16px 24px;">
+            <div class="metric-label">현금 보유량</div>
+            <div class="metric-value" style="font-size:20px; font-weight:700;">{int(sm['cash']):,}원</div>
+          </div>
+        </div>
+      </div>
+" for i, r in df.iloc[0:18, [11, 13]].iterrows() if not pd.isna(r[11]) and r[11] not in ["비중", "증권사", "항목"]])}
           </div>
           <div class="card" style="padding: 16px 24px;">
             <div class="metric-label">현금 보유량</div>
