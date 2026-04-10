@@ -243,20 +243,35 @@ if df is not None:
     import streamlit.components.v1 as components
     import json
 
-    # 데이터 준비
-    stock_labels = stocks['Name'].tolist()
+    # 1. 종목 비중 데이터 가공
+    # 레이블에 % 값을 포함하여 가독성 증대
+    stock_labels = [f"{n} ({w if '%' in str(w) else f'{parse_numeric(w)}%'})" for n, w in zip(stocks['Name'], stocks['Weight'])]
     stock_values = [parse_numeric(w) for w in stocks['Weight']]
     
-    # 증권사 데이터 추출 (필터링 강화)
-    br_df = df.iloc[1:20, [11, 12]].copy()
-    br_df.columns = ['Name', 'Weight']
-    br_clean = br_df[
-        br_df['Name'].notna() & 
-        (~br_df['Name'].astype(str).str.contains("증권사|Total|합계", case=False)) &
-        (br_df['Weight'].notna())
-    ]
-    br_labels = br_clean['Name'].tolist()
-    br_values = [parse_numeric(w) for w in br_clean['Weight']]
+    # 2. 증권사 비중 데이터 가공 (키워드 매핑 방식 도입)
+    try:
+        # L열(11)에서 '증권사' 키워드가 있는 시작 행 찾기
+        br_start_idx = df[df[11].astype(str).str.contains("증권사", na=False)].index
+        if not br_start_idx.empty:
+            start_row = br_start_idx[0] + 1
+            # 시작행부터 최대 15개 행 추출
+            br_raw = df.iloc[start_row:start_row+15, [11, 12]].copy()
+            br_raw.columns = ['Name', 'Weight']
+            
+            # 유효 데이터 필터링 (이름이 있고, 비중이 0보다 큰 경우)
+            br_clean = br_raw[
+                br_raw['Name'].notna() & 
+                (br_raw['Name'].str.strip() != "") &
+                (~br_raw['Name'].astype(str).str.contains("Total|합계|계", case=False)) &
+                (br_raw['Weight'].apply(parse_numeric) > 0)
+            ].copy()
+            
+            br_labels = [f"{n} ({w if '%' in str(w) else f'{parse_numeric(w)}%'})" for n, w in zip(br_clean['Name'], br_clean['Weight'])]
+            br_values = [parse_numeric(w) for w in br_clean['Weight']]
+        else:
+            br_labels, br_values = [], []
+    except:
+        br_labels, br_values = [], []
 
     chart_html = f"""
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
@@ -303,14 +318,34 @@ if df is not None:
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {{
-                    legend: {{ position: 'right', labels: {{ padding: 15, font: {{ size: 12 }} }} }},
+                    legend: {{ 
+                        position: 'right', 
+                        labels: {{ 
+                            padding: 12, 
+                            font: {{ size: 11 }},
+                            generateLabels: (chart) => {{
+                                const data = chart.data;
+                                if (data.labels.length && data.datasets.length) {{
+                                    return data.labels.map((label, i) => ({{
+                                        text: label,
+                                        fillStyle: data.datasets[0].backgroundColor[i % colors.length],
+                                        hidden: false,
+                                        index: i
+                                    }}));
+                                }}
+                                return [];
+                            }}
+                        }} 
+                    }},
                     tooltip: {{ enabled: true }}
                 }},
                 cutout: '65%'
             }}
         }});
-        new Chart(document.getElementById('stockChart'), createCfg({json.dumps(stock_labels)}, {json.dumps(stock_values)}));
-        new Chart(document.getElementById('brokerChart'), createCfg({json.dumps(br_labels)}, {json.dumps(br_values)}));
+        if ({json.dumps(stock_labels)}.length > 0)
+            new Chart(document.getElementById('stockChart'), createCfg({json.dumps(stock_labels)}, {json.dumps(stock_values)}));
+        if ({json.dumps(br_labels)}.length > 0)
+            new Chart(document.getElementById('brokerChart'), createCfg({json.dumps(br_labels)}, {json.dumps(br_values)}));
     </script>
     """
     components.html(chart_html, height=420)
