@@ -1,435 +1,341 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="theme-color" content="#0f172a"/>
-<title>Hstock Premium Dashboard</title>
+import streamlit as st
+import pandas as pd
+import requests
+import io
+import re
 
-<!-- Fonts & Libs -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+# 1. Page Configuration
+st.set_page_config(
+    page_title="Hstock V1.1 Dashboard",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-<style>
-:root {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface-hover: #334155;
-  --card-bg: rgba(30, 41, 59, 0.7);
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --text: #f8fafc;
-  --text-muted: #94a3b8;
-  --border: rgba(255, 255, 255, 0.08);
-  --up: #10b981;
-  --up-bg: rgba(16, 185, 129, 0.1);
-  --down: #ef4444;
-  --down-bg: rgba(239, 68, 68, 0.1);
-  --radius: 16px;
-  --radius-sm: 8px;
-  --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
+# 2. Data Engine Functions
+def parse_numeric(v):
+    if pd.isna(v) or v == "" or v == "-": return 0.0
+    s = str(v).replace(',', '').replace('원', '').replace('%', '').strip()
+    s = s.replace(" ", "")
+    try:
+        return float(s)
+    except:
+        nums = re.findall(r'-?\d+\.?\d*', s)
+        return float(nums[0]) if nums else 0.0
 
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body {
-  background: var(--bg);
-  background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent),
-                    radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.1), transparent);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  min-height: 100vh;
-  padding-bottom: 50px;
-}
+# 시트 설정 (GID 1550923272)
+SHEET_ID = "1WqEb6mn8eFH41mCj3BrrH_pSZMRECFR4qCHI1PmjeBg"
+GID = "1550923272" 
+CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-h1, h2, h3 { font-family: 'Outfit', sans-serif; }
+@st.cache_data(ttl=15)
+def fetch_data():
+    try:
+        resp = requests.get(CSV_URL)
+        resp.encoding = 'utf-8'
+        return pd.read_csv(io.StringIO(resp.text), header=None)
+    except:
+        return None
 
-.header {
-  padding: 30px 20px;
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  border-bottom: 1px solid var(--border);
-}
-.header-inner { max-width: 600px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-end; }
-.h-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-.h-total { font-size: 28px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
-.h-right { text-align: right; }
-.h-date { font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px; }
-.h-days { font-size: 14px; font-weight: 600; color: var(--accent-light); }
+df = fetch_data()
 
-.container { max-width: 600px; margin: 20px auto; padding: 0 16px; }
+if df is not None:
+    # --- Data Extraction ---
+    # 1. Stocks
+    dom = df.iloc[1:9, 0:10].copy()
+    us = df.iloc[11:15, 0:10].copy()
+    stocks_raw = pd.concat([dom, us])
+    stocks_raw.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
+    stocks = stocks_raw[stocks_raw['Name'].notna() & (stocks_raw['Name'].str.strip() != "")].copy()
 
-.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
-.metric-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-  backdrop-filter: blur(6px);
-  transition: transform 0.2s ease;
-}
-.metric-card:active { transform: scale(0.98); }
-.m-label { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
-.m-val { font-size: 20px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.m-sub { font-size: 11px; margin-top: 4px; font-weight: 500; color: var(--text-muted); }
+    # 2. Metrics & Stats
+    row_total = df.iloc[17]   # 18행
+    row_sub = df.iloc[16]     # 17행
+    
+    total_cnt = parse_numeric(df.iloc[7, 15]) # P8
+    win_cnt = parse_numeric(df.iloc[7, 16])   # Q8
+    loss_cnt = parse_numeric(df.iloc[7, 17])  # R8
+    invest_start = str(df.iloc[10, 16])       # Q11
+    invest_days = str(df.iloc[10, 17])        # R11
 
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  margin-bottom: 20px;
-  backdrop-filter: blur(6px);
-}
-.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.card-title { font-size: 14px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    sm = {
+        "eval":  parse_numeric(row_total[3]),  # D18
+        "buy":   parse_numeric(row_total[4]),  # E18
+        "profit": parse_numeric(row_total[5]), # F18
+        "rate":  str(row_total[6]),            # G18
+        "daily": parse_numeric(row_total[7]),  # H18
+        "accum": parse_numeric(row_total[8]),  # I18
+        "cash":  parse_numeric(row_sub[3]),    # D17
+        "total": parse_numeric(row_total[13]), # N18
+    }
+    
+    real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
 
-/* Table Styles */
-.tbl-container { overflow-x: auto; margin: 0 -4px; }
-.tbl { width: 100%; border-collapse: collapse; min-width: 300px; }
-.tbl th { text-align: right; padding: 10px 8px; color: var(--text-muted); font-size: 11px; font-weight: 600; border-bottom: 1px solid var(--border); }
-.tbl th:first-child { text-align: left; }
-.tbl td { padding: 12px 8px; text-align: right; border-bottom: 1px dotted var(--border); font-size: 13px; vertical-align: middle; }
-.tbl td:first-child { text-align: left; font-weight: 600; font-family: 'Outfit', sans-serif; color: #fff; }
-.tbl tr:last-child td { border-bottom: none; }
+    # 3. Custom Template Integration (HTML & CSS)
+    # Replicating the provided HTML/CSS design exactly.
+    st.markdown(f"""
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        html, body, [data-testid="stAppViewContainer"] {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: #f5f5f3;
+            color: #1a1a18;
+        }}
+        
+        @media (prefers-color-scheme: dark) {{
+            [data-testid="stAppViewContainer"] {{ background: #1a1a18; color: #e8e6df; }}
+            .card {{ background: #242422 !important; border-color: rgba(255,255,255,0.1) !important; }}
+            .metric-card {{ background: #2c2c2a !important; }}
+            .stock-table th {{ color: #888780 !important; border-color: rgba(255,255,255,0.1) !important; }}
+            .stock-table td {{ border-color: rgba(255,255,255,0.07) !important; color: #e8e6df !important; }}
+            .badge.flat {{ background: #3a3a38 !important; color: #888780 !important; }}
+            .bar-track {{ background: #3a3a38 !important; }}
+            .section-title, .card-title, .metric-label, .metric-sub, .bar-label, .legend-item, .invest-info span {{ color: #888780 !important; }}
+        }}
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-}
-.badge.up { background: var(--up-bg); color: var(--up); }
-.badge.down { background: var(--down-bg); color: var(--down); }
-.badge.flat { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+        .dash {{ max-width: 1100px; margin: 0 auto; padding: 24px; }}
 
-/* Bar Progress */
-.bar-row { margin-bottom: 14px; }
-.bar-info { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; font-weight: 500; }
-.bar-name { color: var(--text); }
-.bar-pct { color: var(--text-muted); }
-.bar-track { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 10px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Header */
+        .header {{ display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }}
+        .header-left .sub {{ font-size: 12px; color: #888780; margin-bottom: 4px; }}
+        .header-left .total {{ font-size: 30px; font-weight: 500; color: inherit; }}
+        .header-right {{ text-align: right; }}
+        .header-right .sub {{ font-size: 12px; color: #888780; margin-bottom: 3px; }}
+        .header-right .date {{ font-size: 14px; font-weight: 500; }}
+        .header-right .days {{ color: #888780; font-weight: 400; }}
 
-/* Utils */
-.up { color: var(--up) !important; }
-.down { color: var(--down) !important; }
-.text-xs { font-size: 10px; }
+        /* Metric grid */
+        .metric-grid {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }}
+        .metric-card {{ background: #ebebea; border-radius: 8px; padding: 14px 16px; }}
+        .metric-label {{ font-size: 12px; color: #888780; margin-bottom: 4px; }}
+        .metric-value {{ font-size: 20px; font-weight: 500; color: inherit; }}
+        .metric-sub {{ font-size: 12px; margin-top: 3px; color: #888780; }}
+        .up {{ color: #1D9E75 !important; }}
+        .down {{ color: #D85A30 !important; }}
 
-.refresh-area { text-align: center; margin-top: 30px; }
-.refresh-btn {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: #fff;
-  padding: 10px 24px;
-  border-radius: 30px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.refresh-btn:active { transform: scale(0.95); background: var(--surface-hover); }
+        /* Cards */
+        .grid2 {{ display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }}
+        .card {{ background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 16px; }}
+        .card-title {{ font-size: 13px; font-weight: 500; color: #888780; margin-bottom: 14px; }}
 
-.loader { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; }
-.spinner { width: 40px; height: 40px; border: 3px solid rgba(99, 102, 241, 0.1); border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Table */
+        .stock-table {{ width: 100%; border-collapse: collapse; font-size: 12.5px; }}
+        .stock-table th {{
+          color: #888780; font-weight: 500; padding: 4px 6px 8px;
+          text-align: right; border-bottom: 0.5px solid rgba(0,0,0,0.1);
+        }}
+        .stock-table th:first-child {{ text-align: left; }}
+        .stock-table td {{
+          padding: 7px 6px; text-align: right;
+          border-bottom: 0.5px solid rgba(0,0,0,0.06);
+          color: inherit;
+        }}
+        .stock-table td:first-child {{ text-align: left; font-weight: 500; }}
+        .stock-table tr:last-child td {{ border-bottom: none; }}
 
-</style>
-</head>
-<body>
+        /* Badges */
+        .badge {{ display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 500; }}
+        .badge.up {{ background: #EAF3DE; color: #3B6D11; }}
+        .badge.down {{ background: #FAECE7; color: #993C1D; }}
+        .badge.flat {{ background: #ebebea; color: #888780; }}
 
-<div class="header">
-  <div class="header-inner">
-    <div>
-      <div class="h-label">총 자산 총괄</div>
-      <div class="h-total" id="h-total">—</div>
-    </div>
-    <div class="h-right">
-      <span class="h-date" id="h-date">—</span>
-      <span class="h-days" id="h-days">—</span>
-    </div>
-  </div>
-</div>
+        /* Bar rows */
+        .bar-row {{ display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 12px; }}
+        .bar-label {{ width: 90px; color: #888780; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }}
+        .bar-track {{ flex: 1; height: 7px; background: #ebebea; border-radius: 4px; overflow: hidden; }}
+        .bar-fill {{ height: 100%; border-radius: 4px; }}
+        .bar-pct {{ width: 38px; text-align: right; font-weight: 500; flex-shrink: 0; }}
 
-<div class="container" id="loader-view">
-  <div class="loader">
-    <div class="spinner"></div>
-    <div style="color:var(--text-muted)">HStock 엔진 부팅 중...</div>
-  </div>
-</div>
+        /* Legend */
+        .legend-row {{ display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }}
+        .legend-item {{ display: flex; align-items: center; gap: 5px; font-size: 12px; color: #888780; }}
+        .legend-dot {{ width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }}
 
-<div class="container" id="main-view" style="display:none">
-  
-  <div class="metric-grid">
-    <div class="metric-card">
-      <div class="m-label">주식 평가금</div>
-      <div class="m-val" id="m-cur">—</div>
-      <div class="m-sub">매수: <span id="m-buy">—</span></div>
-    </div>
-    <div class="metric-card">
-      <div class="m-label">누적 수익금</div>
-      <div class="m-val" id="m-profit">—</div>
-      <div class="m-sub" id="m-rate">—</div>
-    </div>
-    <div class="metric-card">
-      <div class="m-label">금일 변동액</div>
-      <div class="m-val" id="m-daily">—</div>
-      <div class="m-sub">변동률: <span id="m-daily-rate">—</span></div>
-    </div>
-    <div class="metric-card">
-      <div class="m-label">총 종목 현황</div>
-      <div class="m-val" id="m-total-cnt">—</div>
-      <div class="m-sub">수익/손실: <span id="m-winloss">—</span></div>
-    </div>
-  </div>
-
-  <div class="metric-grid" style="grid-template-columns: 1fr;">
-    <div class="metric-card" style="display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <div class="m-label">현금 및 여유자금</div>
-        <div class="m-val" id="m-cash">—</div>
+        /* Responsive */
+        @media (max-width: 700px) {{
+          .dash {{ padding: 12px; }}
+          .metric-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+          .grid2 {{ grid-template-columns: 1fr; }}
+          .header {{ flex-direction: column; gap: 8px; }}
+          .header-right {{ text-align: left; }}
+        }}
+        
+        /* Hide default Streamlit elements */
+        footer {{visibility: hidden;}}
+        #MainMenu {{visibility: hidden;}}
+        header {{visibility: hidden;}}
+    </style>
+    
+    <div class="dash">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-left">
+          <div class="sub">총 자산 (Hstock V1.1)</div>
+          <div class="total">{int(real_total):,}원</div>
+        </div>
+        <div class="header-right">
+          <div class="sub">투자 시작일</div>
+          <div class="date">{invest_start} <span class="days">| {invest_days}</span></div>
+        </div>
       </div>
-      <div style="text-align: right;">
-        <div class="m-label">누적 총 수익</div>
-        <div class="m-val" id="m-accum">—</div>
+
+      <!-- Metric Row 1 -->
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">주식 평가금액</div>
+          <div class="metric-value">{int(sm['eval']):,}</div>
+          <div class="metric-sub">원</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">매수금액</div>
+          <div class="metric-value">{int(sm['buy']):,}</div>
+          <div class="metric-sub">원</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">누적 수익금</div>
+          <div class="metric-value {'up' if sm['profit']>=0 else 'down'}">{int(sm['profit']):+,}</div>
+          <div class="metric-sub {'up' if sm['profit']>=0 else 'down'}">{sm['rate']}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">금일 변동액</div>
+          <div class="metric-value {'up' if sm['daily']>=0 else 'down'}">{int(sm['daily']):+,}</div>
+          <div class="metric-sub">원</div>
+        </div>
+      </div>
+
+      <!-- Metric Row 2 -->
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">총 종목수</div>
+          <div class="metric-value">{int(total_cnt)}</div>
+          <div class="metric-sub">종목</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">수익 종목</div>
+          <div class="metric-value up">{int(win_cnt)}</div>
+          <div class="metric-sub up">{(win_cnt/total_cnt*100):.1f}%</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">손실 종목</div>
+          <div class="metric-value down">{int(loss_cnt)}</div>
+          <div class="metric-sub down">{(loss_cnt/total_cnt*100):.1f}%</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">누적 총수익</div>
+          <div class="metric-value" style="font-size:17px;">{int(sm['accum']):,}</div>
+          <div class="metric-sub">원</div>
+        </div>
+      </div>
+
+      <!-- Main grid -->
+      <div class="grid2">
+        <!-- 종목 테이블 -->
+        <div class="card">
+          <div class="card-title">보유 종목 현황</div>
+          <table class="stock-table">
+            <thead>
+              <tr><th>종목명</th><th>비중</th><th>현재가</th><th>평단가</th><th>수익률</th></tr>
+            </thead>
+            <tbody>
+              {''.join([f"<tr><td>{r['Name']}</td><td>{r['Weight']}</td><td>{int(r['CurPrice']):,}</td><td>{int(r['AvgPrice']):,}</td><td><span class='badge {'up' if parse_numeric(r['Rate'])>=0 else 'down'}'>{r['Rate']}</span></td></tr>" for _, r in stocks.iterrows()])}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 우측 패널 -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <!-- 자산 유형별 -->
+          <div class="card">
+            <div class="card-title">자산 유형별 비중</div>
+            {''.join([f"<div class='bar-row'><div class='bar-label'>{r[15]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[17])}%;background:{'#3266AD' if r[15]=='국내주식' else '#1D9E75' if r[15]=='안전자산' else '#7F77DD' if r[15]=='해외성장' else '#D85A30'};'></div></div><div class='bar-pct'>{r[17]}</div></div>" for _, r in df.iloc[1:5, 15:18].iterrows() if not pd.isna(r[15])])}
+          </div>
+
+          <!-- 증권사별 -->
+          <div class="card">
+            <div class="card-title">증권사별 비중</div>
+            {''.join([f"<div class='bar-row'><div class='bar-label'>{r[11]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[12])}%;background:#3266AD;'></div></div><div class='bar-pct'>{r[12]}</div></div>" for _, r in df.iloc[1:15, 11:13].iterrows() if not pd.isna(r[11]) and r[11] not in ["비중", "증권사"]])}
+          </div>
+          
+          <div class="card" style="padding: 12px 16px;">
+            <div class="metric-label">현금 보유량</div>
+            <div class="metric-value">{int(sm['cash']):,}원</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 수익금 차트 -->
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-title">종목별 수익금 비교</div>
+        <div class="legend-row">
+          <div class="legend-item"><div class="legend-dot" style="background:#1D9E75;"></div>수익 종목</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#D85A30;"></div>손실 종목</div>
+        </div>
+        <div style="position:relative;width:100%;height:220px;">
+          <canvas id="profitChart"></canvas>
+        </div>
       </div>
     </div>
-  </div>
+    """, unsafe_allow_html=True)
 
-  <div class="card">
-    <div class="card-header"><div class="card-title">수익금 TOP 비중</div></div>
-    <div style="position:relative;width:100%;height:220px">
-      <canvas id="profitChart"></canvas>
+    # 4. Chart.js Script
+    # Filtering for chart
+    chart_stocks = stocks[stocks['Profit'] != 0].copy()
+    chart_stocks['Profit'] = chart_stocks['Profit'].apply(parse_numeric)
+    chart_stocks = chart_stocks.sort_values('Profit', ascending=False)
+    
+    js_labels = chart_stocks['Name'].tolist()
+    js_data = chart_stocks['Profit'].tolist()
+    js_colors = ['#1D9E75' if v >= 0 else '#D85A30' for v in js_data]
+
+    st.components.v1.html(f"""
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <div style="height: 220px;">
+      <canvas id="pChart"></canvas>
     </div>
-  </div>
+    <script>
+      new Chart(document.getElementById('pChart'), {{
+        type: 'bar',
+        data: {{
+          labels: {js_labels},
+          datasets: [{{
+            label: '수익금',
+            data: {js_data},
+            backgroundColor: {js_colors},
+            borderRadius: 3,
+          }}]
+        }},
+        options: {{
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {{
+            legend: {{ display: false }},
+            tooltip: {{
+              callbacks: {{
+                label: (ctx) => {{
+                  const v = ctx.raw;
+                  return (v >= 0 ? '+' : '') + v.toLocaleString('ko-KR') + '원';
+                }}
+              }}
+            }}
+          }},
+          scales: {{
+            x: {{
+              ticks: {{ font: {{ size: 11 }}, color: '#888780', maxRotation: 30 }},
+              grid: {{ display: false }},
+            }},
+            y: {{
+              ticks: {{
+                font: {{ size: 10 }},
+                color: '#888780',
+                callback: (v) => (v < 0 ? '-' : '') + Math.abs(v / 10000).toFixed(0) + '만'
+              }},
+              grid: {{ color: 'rgba(136,135,128,0.15)' }}
+            }}
+          }}
+        }}
+      }});
+    </script>
+    """, height=240)
 
-  <div class="card">
-    <div class="card-header"><div class="card-title">보유 종목 현황</div></div>
-    <div class="tbl-container">
-      <table class="tbl">
-        <thead>
-          <tr><th>종목명</th><th>비중</th><th>현재가</th><th>수익률</th></tr>
-        </thead>
-        <tbody id="stock-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><div class="card-title">자산 유형</div></div>
-    <div id="asset-bars"></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><div class="card-title">보유 증권사</div></div>
-    <div id="broker-bars"></div>
-  </div>
-
-  <div class="refresh-area">
-    <button class="refresh-btn" onclick="init()">데이터 새로고침</button>
-    <div style="font-size:10px; color:var(--text-muted); margin-top:12px;" id="last-update"></div>
-  </div>
-
-</div>
-
-<script>
-const SHEET_ID = "1WqEb6mn8eFH41mCj3BrrH_pSZMRECFR4qCHI1PmjeBg";
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
-
-const ACCENTS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316'];
-const ASSET_MAP = {'국내주식': '#6366f1', '안전자산': '#10b981', '해외성장': '#8b5cf6', '가상화폐': '#f43f5e'};
-
-let chart = null;
-
-function parseNum(v) {
-  if (typeof v !== 'string') return v || 0;
-  return parseInt(v.replace(/[,%\s]/g, '')) || 0;
-}
-
-function fmt(n) { return n != null ? Math.round(n).toLocaleString() : '0'; }
-function fmtS(n) { return (n >= 0 ? '+' : '') + fmt(n); }
-
-async function init() {
-  document.getElementById('loader-view').style.display = 'flex';
-  document.getElementById('main-view').style.display = 'none';
-
-  try {
-    const res = await fetch(SHEET_URL);
-    const csv = await res.text();
-    Papa.parse(csv, {
-      complete: (results) => render(results.data),
-      error: (e) => alert("Parsing error: " + e.message)
-    });
-  } catch(e) {
-    alert("Fetch error: " + e.message);
-  }
-}
-
-function render(rows) {
-  // 1. Stock Data (Domestic 2-9, US 12-15)
-  const stocks = [];
-  const stockRanges = [[1, 9], [11, 15]];
-  stockRanges.forEach(range => {
-    for (let i = range[0]; i < range[1]; i++) {
-        const r = rows[i];
-        if (!r || !r[0] || r[0].trim() === "현금" || r[0].trim() === "Total") continue;
-        stocks.push({
-            name: r[0].trim(),
-            weight: r[1],
-            qty: parseNum(r[2]),
-            curAmt: parseNum(r[3]),
-            buyAmt: parseNum(r[4]),
-            profit: parseNum(r[5]),
-            avgPrice: parseNum(r[6]),
-            curPrice: parseNum(r[7]),
-            rate: r[9]
-        });
-    }
-  });
-
-  // 2. Summary (Row 18)
-  const sr = rows[17] || [];
-  const cashRow = rows[17] || []; 
-  const summary = {
-    totalCur: parseNum(sr[3]),
-    totalBuy: parseNum(sr[4]),
-    profitAccum: parseNum(sr[5]),
-    rateAccum: sr[6],
-    dailyChg: parseNum(sr[7]),
-    accumTotal: parseNum(sr[8]),
-    totalAsset: parseNum(sr[13]),
-    cash: parseNum(rows[17] ? rows[17][3] : 0)
-  };
-
-  // Adjust total asset if missing from col N
-  const totalAsset = summary.totalAsset || (summary.totalCur + summary.cash);
-
-  // 3. Brokers (L2-N15)
-  const brokers = [];
-  for(let i=1; i<15; i++){
-    const r = rows[i];
-    if(r && r[11] && r[11].trim() && r[11] !== "증권사"){
-        brokers.push({ name: r[11].trim(), pct: parseFloat(r[12])||0 });
-    }
-  }
-
-  // 4. Assets (P2-R5)
-  const assets = [];
-  for(let i=1; i<5; i++){
-    const r = rows[i];
-    if(r && r[15] && r[15].trim() && r[15] !== "자산유형"){
-        assets.push({ name: r[15].trim(), pct: parseFloat(r[17])||0 });
-    }
-  }
-
-  // UI Mapping
-  document.getElementById('h-total').textContent = fmt(totalAsset) + '원';
-  document.getElementById('h-date').textContent = rows[10] ? rows[10][20] : '';
-  document.getElementById('h-days').textContent = rows[10] ? rows[10][22] : '';
-
-  set('m-cur', fmt(summary.totalCur) + '원');
-  set('m-buy', fmt(summary.totalBuy) + '원');
-  
-  const pEl = document.getElementById('m-profit');
-  pEl.textContent = fmtS(summary.profitAccum) + '원';
-  pEl.className = 'm-val ' + (summary.profitAccum >= 0 ? 'up' : 'down');
-  
-  const rEl = document.getElementById('m-rate');
-  rEl.textContent = summary.rateAccum;
-  rEl.className = 'm-sub ' + (parseFloat(summary.rateAccum) >= 0 ? 'up' : 'down');
-
-  const dEl = document.getElementById('m-daily');
-  dEl.textContent = fmtS(summary.dailyChg) + '원';
-  dEl.className = 'm-val ' + (summary.dailyChg >= 0 ? 'up' : 'down');
-  
-  const dRate = ((summary.dailyChg / (summary.totalCur || 1)) * 100).toFixed(2);
-  set('m-daily-rate', dRate + '%');
-  document.getElementById('m-daily-rate').className = dRate >= 0 ? 'up' : 'down';
-
-  set('m-total-cnt', stocks.length + '종목');
-  const win = stocks.filter(s => s.profit > 0).length;
-  const loss = stocks.filter(s => s.profit < 0).length;
-  document.getElementById('m-winloss').innerHTML = `<span class="up">${win}</span> <span class="text-xs">승</span> / <span class="down">${loss}</span> <span class="text-xs">패</span>`;
-
-  set('m-cash', fmt(summary.cash) + '원');
-  set('m-accum', fmt(summary.accumTotal) + '원');
-
-  // Table
-  const tbody = document.getElementById('stock-tbody');
-  tbody.innerHTML = '';
-  stocks.forEach(s => {
-    const rate = parseFloat(s.rate);
-    const cls = rate > 0 ? 'up' : (rate < 0 ? 'down' : 'flat');
-    tbody.innerHTML += `<tr>
-        <td>${s.name}</td>
-        <td class="text-xs">${s.weight}</td>
-        <td>${fmt(s.curPrice)}</td>
-        <td><span class="badge ${cls}">${rate > 0 ? '+' : ''}${s.rate}</span></td>
-    </tr>`;
-  });
-
-  // Bar Progress
-  const ab = document.getElementById('asset-bars'); ab.innerHTML = '';
-  assets.forEach((a, i) => {
-    ab.innerHTML += barComp(a.name, a.pct, ASSET_MAP[a.name] || ACCENTS[i % ACCENTS.length]);
-  });
-
-  const bb = document.getElementById('broker-bars'); bb.innerHTML = '';
-  brokers.forEach((b, i) => {
-    bb.innerHTML += barComp(b.name, b.pct, ACCENTS[i % ACCENTS.length]);
-  });
-
-  // Chart
-  renderChart(stocks);
-
-  document.getElementById('last-update').textContent = "마지막 동기화: " + new Date().toLocaleTimeString();
-  document.getElementById('loader-view').style.display = 'none';
-  document.getElementById('main-view').style.display = 'block';
-}
-
-function barComp(name, pct, color) {
-  return `<div class="bar-row">
-    <div class="bar-info"><span class="bar-name">${name}</span><span class="bar-pct">${pct.toFixed(1)}%</span></div>
-    <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${color}"></div></div>
-  </div>`;
-}
-
-function renderChart(stocks) {
-  const pStocks = stocks.filter(s => s.profit !== 0).sort((a,b) => b.profit - a.profit);
-  const labels = pStocks.map(s => s.name);
-  const data = pStocks.map(s => s.profit);
-  const colors = data.map(v => v >= 0 ? '#10b981' : '#ef4444');
-
-  if(chart) chart.destroy();
-  chart = new Chart(document.getElementById('profitChart'), {
-    type: 'bar',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 5 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => (v/10000).toFixed(0) + '만' } }
-      }
-    }
-  });
-}
-
-function set(id, val) { const el = document.getElementById(id); if(el) el.textContent = val; }
-
-init();
-</script>
-</body>
-</html>
+else:
+    st.error("데이터 로딩 실패")
