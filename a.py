@@ -54,6 +54,7 @@ if df is not None:
     us = df.iloc[11:15, 0:10].copy()
     stocks_raw = pd.concat([dom, us])
     stocks_raw.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
+    # stocks 전처리: Name이 있고 공백이 아닌 것만
     stocks = stocks_raw[stocks_raw['Name'].notna() & (stocks_raw['Name'].str.strip() != "")].copy()
 
     row_total = df.iloc[17]
@@ -69,9 +70,6 @@ if df is not None:
     invest_days = str(df.iloc[11, 17])            # R12: 투자일/경과일
     
     total_asset_q6 = parse_numeric(df.iloc[5, 16]) # Q6: 전체 자산 합계
-
-    win_p_safe = (win_cnt / total_cnt * 100) if total_cnt > 0 else 0.0
-    loss_p_safe = (loss_cnt / total_cnt * 100) if total_cnt > 0 else 0.0
 
     sm = {
         "eval":  parse_numeric(row_total[3]),
@@ -244,4 +242,3 @@ if df is not None:
     """, height=240)
 else:
     st.error("데이터 로딩 실패")
-```
