@@ -42,7 +42,10 @@ def fetch_data():
     try:
         resp = requests.get(CSV_URL)
         resp.encoding = 'utf-8'
-        return pd.read_csv(io.StringIO(resp.text), header=None)
+        # 컬럼 유연성을 위해 재색인 적용 필요
+        raw_df = pd.read_csv(io.StringIO(resp.text), header=None)
+        # 최소 25개 컬럼 보장 (U열 인덱스 20 포함)
+        return raw_df.reindex(columns=range(max(25, raw_df.shape[1])))
     except:
         return None
 
