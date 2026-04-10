@@ -53,9 +53,9 @@ df = fetch_data()
 if df is not None:
     # --- 데이터 추출 및 정밀 매핑 ---
     # 사용자 확인 기반 매핑 (A:0, B:1, C:2, D:3, E:4, F:5, G:6, H:7, I:8, J:9)
-    # 현재가:J(9), 평단가:I(8), 주당전일비:F(5), 금액 전일비:G(6), 수익금:H(7), 수익률:K(10)추정, 비중:B(1)
-    # 컬럼 인덱스: 0:Name, 1:Weight, 2:Qty, 3:CurAmt, 4:BuyAmt, 7:Profit(H), 8:AvgPrice(I), 9:CurPrice(J), 5:Diff(F), 6:TotalDiff(G), 10:Rate(K)
-    cols = [0, 1, 2, 3, 4, 7, 8, 9, 5, 6, 10]
+    # 현재가:J(9), 평단가:I(8), 주당전일비:F(5), 금액 전일비:G(6), 수익금:H(7), 수익률:L(11), 비중:B(1)
+    # 컬럼 인덱스: 0:Name, 1:Weight, 2:Qty, 3:CurAmt, 4:BuyAmt, 7:Profit(H), 8:AvgPrice(I), 9:CurPrice(J), 5:Diff(F), 6:TotalDiff(G), 11:Rate(L)
+    cols = [0, 1, 2, 3, 4, 7, 8, 9, 5, 6, 11]
     
     # 동적 행 추출: 고정 범위를 넓히고 불필요한 행(헤더 등) 필터링
     exclude_keywords = ["비중", "유형", "항목", "증권사", "Total", "합계", "계", "total", "합", "종목", "Name"]
