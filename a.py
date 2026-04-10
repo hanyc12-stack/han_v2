@@ -203,7 +203,7 @@ if df is not None:
         <div class="metric-card"><div class="metric-label">현금 보유량</div><div class="metric-value">{int(sm['cash']):,}</div><div class="metric-sub">원</div></div>
       </div>
 
-      <div class="card" style="width: 100%;">
+      <div class="card" style="width: 100%; margin-bottom: 24px;">
         <div class="card-title">📦 보유 종목 현황</div>
         <table class="stock-table">
           <thead>
@@ -236,7 +236,65 @@ if df is not None:
           </tbody>
         </table>
       </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 40px;">
+        <div class="card">
+          <div class="card-title">📊 종목별 비중</div>
+          <div id="stockChartContainer" style="height: 300px;">
+            <canvas id="stockChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🏢 증권사별 비중</div>
+          <div id="brokerChartContainer" style="height: 300px;">
+            <canvas id="brokerChart"></canvas>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      const createChart = (id, labels, data, title) => {{
+        const ctx = document.getElementById(id).getContext('2d');
+        new Chart(ctx, {{
+          type: 'doughnut',
+          data: {{
+            labels: labels,
+            datasets: [{{
+              data: data,
+              backgroundColor: [
+                '#E57373', '#64B5F6', '#81C784', '#FFF176', '#FFB74D', 
+                '#BA68C8', '#A1887F', '#90A4AE', '#4DB6AC', '#AED581'
+              ],
+              borderWidth: 0,
+              hoverOffset: 10
+            }}]
+          }},
+          options: {{
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {{
+              legend: {{ position: 'right', labels: {{ padding: 20, font: {{ size: 12, family: 'Noto Sans KR' }} }} }},
+              tooltip: {{ enabled: true }}
+            }},
+            cutout: '70%'
+          }}
+        }});
+      }};
+
+      // 데이터 주입
+      const stockLabels = {list(stocks['Name'])};
+      const stockData = {[parse_numeric(w) for w in stocks['Weight']]};
+      
+      // 증권사 데이터 파싱 및 주입
+      {"" if True else ""} # placeholder
+      const brokerLabels = {list(df.iloc[1:15, 11].dropna())};
+      const brokerData = {[parse_numeric(w) for w in df.iloc[1:15, 12].dropna()]};
+      
+      createChart('stockChart', stockLabels, stockData, '종목비중');
+      createChart('brokerChart', brokerLabels, brokerData, '증권사비중');
+    </script>
     """, unsafe_allow_html=True)
 else:
     st.error("데이터 로딩 실패")
