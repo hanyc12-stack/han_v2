@@ -49,30 +49,29 @@ def fetch_data():
 df = fetch_data()
 
 if df is not None:
-    # --- 데이터 추출 및 정밀 매핑 (사용자 피드백 반영) ---
-    
-    # 1. 종목 리스트
+    # --- 데이터 추출 및 정밀 매핑 ---
     dom = df.iloc[1:9, 0:10].copy()
     us = df.iloc[11:15, 0:10].copy()
     stocks_raw = pd.concat([dom, us])
     stocks_raw.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
     stocks = stocks_raw[stocks_raw['Name'].notna() & (stocks_raw['Name'].str.strip() != "")].copy()
 
-    # 2. 요약 지표 (Row 18)
     row_total = df.iloc[17]
     row_sub = df.iloc[16]
     
-    # 3. 상세 통계 및 날짜 (P12, R12 등 사용자 지정 위치)
     total_cnt = parse_numeric(df.iloc[8, 15])     # P9: 종목수
     win_cnt = parse_numeric(df.iloc[8, 16])       # Q9: 수익 종목수
     win_p_str = str(df.iloc[9, 16])               # Q10: 수익률%
     loss_cnt = parse_numeric(df.iloc[8, 17])      # R9: 손실 종목수
     loss_p_str = str(df.iloc[9, 17])              # R10: 손실률%
     
-    invest_start = str(df.iloc[11, 15])           # P12: 투자 시작일 (수정됨)
-    invest_days = str(df.iloc[11, 17])            # R12: 투자일/경과일 (수정됨)
+    invest_start = str(df.iloc[11, 15])           # P12: 투자 시작일
+    invest_days = str(df.iloc[11, 17])            # R12: 투자일/경과일
     
     total_asset_q6 = parse_numeric(df.iloc[5, 16]) # Q6: 전체 자산 합계
+
+    win_p_safe = (win_cnt / total_cnt * 100) if total_cnt > 0 else 0.0
+    loss_p_safe = (loss_cnt / total_cnt * 100) if total_cnt > 0 else 0.0
 
     sm = {
         "eval":  parse_numeric(row_total[3]),
@@ -84,10 +83,9 @@ if df is not None:
         "cash":  parse_numeric(row_sub[3]),
         "total": total_asset_q6 if total_asset_q6 > 0 else parse_numeric(row_total[13]),
     }
-    
     real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
 
-    # 4. HTML/CSS 템플릿
+    # UI 템플릿
     st.markdown(f"""
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -139,7 +137,6 @@ if df is not None:
     </style>
     
     <div class="dash">
-      <!-- Header -->
       <div class="header">
         <div class="header-left">
           <div class="sub" style="font-size:12px; color:#888780;">총 자산 (Hstock V1.1)</div>
@@ -151,7 +148,6 @@ if df is not None:
         </div>
       </div>
 
-      <!-- Metric Row 1 -->
       <div class="metric-grid">
         <div class="metric-card"><div class="metric-label">주식 평가금액</div><div class="metric-value">{int(sm['eval']):,}</div><div class="metric-sub">원</div></div>
         <div class="metric-card"><div class="metric-label">매수금액</div><div class="metric-value">{int(sm['buy']):,}</div><div class="metric-sub">원</div></div>
@@ -167,7 +163,6 @@ if df is not None:
         </div>
       </div>
 
-      <!-- Metric Row 2 -->
       <div class="metric-grid">
         <div class="metric-card"><div class="metric-label">총 종목수</div><div class="metric-value">{int(total_cnt)}</div><div class="metric-sub">종목</div></div>
         <div class="metric-card">
@@ -217,7 +212,7 @@ if df is not None:
     </div>
     """, unsafe_allow_html=True)
 
-    # 5. 차트 엔진
+    # 4. 차트 엔진 (Chart.js)
     c_stocks = stocks[stocks['Profit'] != 0].copy()
     c_stocks['Profit'] = c_stocks['Profit'].apply(parse_numeric)
     c_stocks = c_stocks.sort_values('Profit', ascending=False)
@@ -247,4 +242,6 @@ if df is not None:
       }});
     </script>
     """, height=240)
+else:
+    st.error("데이터 로딩 실패")
 ```
