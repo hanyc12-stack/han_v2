@@ -32,7 +32,7 @@ def format_price(v):
     except:
         return "-"
 
-# 대시보드 시트 GID
+# 대시보드 시트 GID (1550923272)
 SHEET_ID = "1WqEb6mn8eFH41mCj3BrrH_pSZMRECFR4qCHI1PmjeBg"
 GID = "1550923272" 
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&range=A:Z&gid={GID}"
@@ -50,6 +50,7 @@ def fetch_data():
 df = fetch_data()
 
 if df is not None:
+    # 헬퍼 함수
     def get_summary_val(label, col_target=22):
         try:
             row = df[df[21].astype(str).str.contains(label, na=False)]
@@ -85,6 +86,8 @@ if df is not None:
 
     total_asset_q6 = parse_numeric(df.iloc[5, 16]) 
     real_total = total_asset_q6 if total_asset_q6 > 0 else (sm["eval"] + sm["cash"])
+    invest_start = str(df.iloc[11, 15])           # P12
+    invest_days = str(df.iloc[17, 17])            # R18 (정확한 908일 등 데이터)
 
     def get_color_class(val):
         nums = parse_numeric(val)
@@ -114,17 +117,17 @@ if df is not None:
         .metric-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }}
         .metric-card {{ background: #fff; border: 1px solid rgba(0,0,0,0.05); border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }}
         .metric-label {{ font-size: 13px; color: #888780; margin-bottom: 8px; font-weight: 500; }}
-        .metric-value {{ font-size: 21px; font-weight: 700; letter-spacing: -0.5px; }}
+        .metric-value {{ font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }}
         .up {{ color: #D85A30 !important; }}
         .down {{ color: #3266AD !important; }}
         .flat {{ color: #888780 !important; }}
         .card {{ background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 20px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 24px; }}
         .card-title {{ font-size: 17px; font-weight: 700; margin-bottom: 20px; }}
         .table-wrapper {{ overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }}
-        .stock-table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; min-width: 800px; }}
-        .stock-table th {{ color: #888780; font-weight: 600; padding: 12px 8px; text-align: right; border-bottom: 1.5px solid rgba(0,0,0,0.08); position: sticky; top: 0; background: #fff; z-index: 1; }}
-        .stock-table td {{ padding: 14px 8px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.04); }}
-        
+        .stock-table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 800px; }}
+        .stock-table th {{ color: #888780; font-weight: 600; padding: 10px 6px; text-align: right; border-bottom: 1.5px solid rgba(0,0,0,0.08); position: sticky; top: 0; background: #fff; z-index: 1; font-size: 12px; }}
+        .stock-table td {{ padding: 12px 6px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.04); }}
+
         /* 첫 번째 열 고정 (Sticky Column) */
         .stock-table th:first-child, 
         .stock-table td:first-child {{
@@ -135,21 +138,25 @@ if df is not None:
             text-align: left;
             border-right: 1px solid rgba(0,0,0,0.05);
             min-width: 140px;
+            font-weight: 700;
         }}
         .stock-table th:first-child {{ z-index: 3; }}
 
-        .badge {{ display: inline-block; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: 700; }}
+        .badge {{ display: inline-block; font-size: 10.5px; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
         .badge.up {{ background: #FAECE7; color: #D85A30; }}
         .badge.down {{ background: #E7F0FA; color: #3266AD; }}
 
         /* 모바일 최적화 */
         @media (max-width: 600px) {{
-            .dash {{ padding: 10px 15px; }}
-            .total {{ font-size: 26px; }}
-            .metric-grid {{ grid-template-columns: repeat(2, 1fr); gap: 10px; }}
-            .metric-card {{ padding: 15px; }}
-            .metric-value {{ font-size: 17px; }}
-            .card {{ padding: 15px; border-radius: 16px; }}
+            .dash {{ padding: 10px 12px; }}
+            .total {{ font-size: 24px; }}
+            .metric-grid {{ grid-template-columns: repeat(2, 1fr); gap: 8px; }}
+            .metric-card {{ padding: 12px; }}
+            .metric-value {{ font-size: 16px; }}
+            .card {{ padding: 12px; border-radius: 12px; }}
+            .stock-table {{ font-size: 11.5px; }}
+            .stock-table th, .stock-table td {{ padding: 8px 4px; }}
+            .badge {{ font-size: 10px; padding: 2px 6px; }}
         }}
     </style>
     
@@ -173,7 +180,7 @@ if df is not None:
           <table class="stock-table">
             <thead><tr><th style="text-align:left;">종목명</th><th>비중</th><th>현재가</th><th>평단가</th><th>주당전일비</th><th>금액전일비</th><th>수익금(수익률)</th></tr></thead>
             <tbody>
-              {''.join([f"<tr><td style='font-weight:700;'>{r['Name']}</td><td>{r['Weight']}</td><td>{format_price(r['CurPrice'])}</td><td>{format_price(r['AvgPrice'])}</td><td class='{get_color_class(r['Diff'])}'>{format_price(r['Diff'])}</td><td class='{get_color_class(r['TotalDiff'])}'>{format_price(r['TotalDiff'])}</td><td><span class='badge {get_color_class(r['Profit'])}'>{format_price(r['Profit'])} ({r['Rate']})</span></td></tr>" for _, r in stocks.iterrows()])}
+              {''.join([f"<tr><td>{r['Name']}</td><td>{r['Weight']}</td><td>{format_price(r['CurPrice'])}</td><td>{format_price(r['AvgPrice'])}</td><td class='{get_color_class(r['Diff'])}'>{format_price(r['Diff'])}</td><td class='{get_color_class(r['TotalDiff'])}'>{format_price(r['TotalDiff'])}</td><td><span class='badge {get_color_class(r['Profit'])}'>{format_price(r['Profit'])} ({r['Rate']})</span></td></tr>" for _, r in stocks.iterrows()])}
             </tbody>
           </table>
         </div>
@@ -206,17 +213,21 @@ if df is not None:
     <script>
         Chart.register(ChartDataLabels);
         const palette = ['#E57373', '#64B5F6', '#81C784', '#FFF176', '#FFB74D', '#BA68C8', '#A1887F', '#90A4AE', '#4DB6AC', '#AED581'];
+        
         new Chart(document.getElementById('weightChart'), {{
             type: 'doughnut',
             data: {{ labels: {json.dumps(s_names)}, datasets: [{{ data: {json.dumps(s_weights)}, backgroundColor: palette, borderWidth: 0 }}] }},
-            options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ legend: {{ position: 'right' }}, datalabels: {{ color: '#fff', font: {{ weight: 'bold' }}, formatter: (val) => val > 2 ? val.toFixed(1) + '%' : '' }} }} }}
+            options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ legend: {{ position: 'right', labels: {{ font: {{ size: 11 }} }} }}, 
+            datalabels: {{ color: '#fff', font: {{ weight: 'bold', size: 10 }}, formatter: (val) => val > 2 ? val.toFixed(1) + '%' : '' }} }} }}
         }});
+
         const pData = {json.dumps(s_profits)};
         new Chart(document.getElementById('profitChart'), {{
             type: 'bar',
             data: {{ labels: {json.dumps(s_names)}, datasets: [{{ label: '수익금', data: pData, backgroundColor: pData.map(v => v >= 0 ? '#D85A30' : '#3266AD'), borderRadius: 6 }}] }},
             options: {{ responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-                plugins: {{ legend: {{ display: false }}, datalabels: {{ anchor: 'end', align: 'end', color: (ctx) => ctx.dataset.data[ctx.dataIndex] >= 0 ? '#D85A30' : '#3266AD', formatter: (val) => Math.abs(val) >= 1000 ? (val/10000).toFixed(1) + '만' : val }} }}
+                plugins: {{ legend: {{ display: false }}, datalabels: {{ anchor: 'end', align: 'end', color: (ctx) => ctx.dataset.data[ctx.dataIndex] >= 0 ? '#D85A30' : '#3266AD', 
+                font: {{ weight: 'bold', size: 11 }}, formatter: (val) => Math.abs(val) >= 1000 ? (val/10000).toFixed(1) + '만' : val }} }}
             }}
         }});
     </script>
