@@ -236,65 +236,83 @@ if df is not None:
           </tbody>
         </table>
       </div>
-
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 40px;">
-        <div class="card">
-          <div class="card-title">📊 종목별 비중</div>
-          <div id="stockChartContainer" style="height: 300px;">
-            <canvas id="stockChart"></canvas>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">🏢 증권사별 비중</div>
-          <div id="brokerChartContainer" style="height: 300px;">
-            <canvas id="brokerChart"></canvas>
-          </div>
-        </div>
-      </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-      const createChart = (id, labels, data, title) => {{
-        const ctx = document.getElementById(id).getContext('2d');
-        new Chart(ctx, {{
-          type: 'doughnut',
-          data: {{
-            labels: labels,
-            datasets: [{{
-              data: data,
-              backgroundColor: [
-                '#E57373', '#64B5F6', '#81C784', '#FFF176', '#FFB74D', 
-                '#BA68C8', '#A1887F', '#90A4AE', '#4DB6AC', '#AED581'
-              ],
-              borderWidth: 0,
-              hoverOffset: 10
-            }}]
-          }},
-          options: {{
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {{
-              legend: {{ position: 'right', labels: {{ padding: 20, font: {{ size: 12, family: 'Noto Sans KR' }} }} }},
-              tooltip: {{ enabled: true }}
-            }},
-            cutout: '70%'
-          }}
-        }});
-      }};
-
-      // 데이터 주입
-      const stockLabels = {list(stocks['Name'])};
-      const stockData = {[parse_numeric(w) for w in stocks['Weight']]};
-      
-      // 증권사 데이터 파싱 및 주입
-      {"" if True else ""} # placeholder
-      const brokerLabels = {list(df.iloc[1:15, 11].dropna())};
-      const brokerData = {[parse_numeric(w) for w in df.iloc[1:15, 12].dropna()]};
-      
-      createChart('stockChart', stockLabels, stockData, '종목비중');
-      createChart('brokerChart', brokerLabels, brokerData, '증권사비중');
-    </script>
     """, unsafe_allow_html=True)
+
+    # --- 차트 섹션 (st.components.v1.html 사용으로 안정성 확보) ---
+    import streamlit.components.v1 as components
+    import json
+
+    # 데이터 준비
+    stock_labels = stocks['Name'].tolist()
+    stock_values = [parse_numeric(w) for w in stocks['Weight']]
+    
+    # 증권사 데이터 추출 (필터링 강화)
+    br_df = df.iloc[1:20, [11, 12]].copy()
+    br_df.columns = ['Name', 'Weight']
+    br_clean = br_df[
+        br_df['Name'].notna() & 
+        (~br_df['Name'].astype(str).str.contains("증권사|Total|합계", case=False)) &
+        (br_df['Weight'].notna())
+    ]
+    br_labels = br_clean['Name'].tolist()
+    br_values = [parse_numeric(w) for w in br_clean['Weight']]
+
+    chart_html = f"""
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {{ font-family: 'Noto Sans KR', sans-serif; background: transparent; margin: 0; padding: 0; overflow: hidden; }}
+        .chart-container {{ display: flex; gap: 24px; padding: 10px; }}
+        .card {{ 
+            background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 20px; 
+            padding: 24px; width: 48%; box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+            height: 380px; box-sizing: border-box;
+        }}
+        .card-title {{ font-size: 17px; font-weight: 700; color: #1a1a18; margin-bottom: 20px; }}
+        canvas {{ max-height: 280px; }}
+        @media (prefers-color-scheme: dark) {{
+            .card {{ background: #242422; border-color: rgba(255,255,255,0.1); }}
+            .card-title {{ color: #e8e6df; }}
+        }}
+    </style>
+    <div class="chart-container">
+        <div class="card">
+            <div class="card-title">📊 종목별 비중</div>
+            <canvas id="stockChart"></canvas>
+        </div>
+        <div class="card">
+            <div class="card-title">🏢 증권사별 비중</div>
+            <canvas id="brokerChart"></canvas>
+        </div>
+    </div>
+    <script>
+        const colors = ['#E57373', '#64B5F6', '#81C784', '#FFF176', '#FFB74D', '#BA68C8', '#A1887F', '#90A4AE', '#4DB6AC', '#AED581'];
+        const createCfg = (labels, data) => ({{
+            type: 'doughnut',
+            data: {{
+                labels: labels,
+                datasets: [{{
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    hoverOffset: 12
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{
+                    legend: {{ position: 'right', labels: {{ padding: 15, font: {{ size: 12 }} }} }},
+                    tooltip: {{ enabled: true }}
+                }},
+                cutout: '65%'
+            }}
+        }});
+        new Chart(document.getElementById('stockChart'), createCfg({json.dumps(stock_labels)}, {json.dumps(stock_values)}));
+        new Chart(document.getElementById('brokerChart'), createCfg({json.dumps(br_labels)}, {json.dumps(br_values)}));
+    </script>
+    """
+    components.html(chart_html, height=420)
 else:
     st.error("데이터 로딩 실패")
