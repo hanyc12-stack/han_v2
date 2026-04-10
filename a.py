@@ -52,6 +52,19 @@ df = fetch_data()
 
 if df is not None:
     # --- 데이터 추출 및 정밀 매핑 ---
+    
+    # 헬퍼: V열(21)에서 항목명을 찾아 W열(22) 또는 X열(23) 값을 가져옴
+    def get_summary_val(label, col_target=22):
+        try:
+            # V열에서 label이 포함된 행 찾기
+            row = df[df[21].astype(str).str.contains(label, na=False)]
+            if not row.empty:
+                val = row.iloc[0, col_target]
+                return val if pd.notna(val) else "0"
+            return "0"
+        except:
+            return "0"
+
     # 사용자 확인 기반 매핑 (A:0, B:1, C:2, D:3, E:4, F:5, G:6, H:7, I:8, J:9)
     # 현재가:J(9), 평단가:I(8), 주당전일비:F(5), 금액 전일비:G(6), 수익금:H(7), 수익률:L(11), 비중:B(1)
     # 컬럼 인덱스: 0:Name, 1:Weight, 2:Qty, 3:CurAmt, 4:BuyAmt, 7:Profit(H), 8:AvgPrice(I), 9:CurPrice(J), 5:Diff(F), 6:TotalDiff(G), 11:Rate(L)
@@ -70,25 +83,26 @@ if df is not None:
         (raw_stocks['Weight'].str.strip() != "비중")
     ].drop_duplicates(subset=['Name']).copy()
 
-    row_total = df.iloc[17]
-    row_sub = df.iloc[16]
+    # 상단 요약 지표 (V~X열 다이나믹 매핑)
+    sm = {
+        "eval":   parse_numeric(get_summary_val("주식 평가금액", 22)), # W열
+        "buy":    parse_numeric(get_summary_val("매수금액", 22)),     # W열
+        "profit": parse_numeric(get_summary_val("누적 수익금", 22)),   # W열
+        "rate":   str(get_summary_val("누적 수익금", 23)),             # X열 (수익률)
+        "daily":  parse_numeric(get_summary_val("금일 변동액", 22)),   # W열
+        "daily_rate": str(get_summary_val("금일 변동액", 23)),         # X열 (변동률)
+        "cash":   parse_numeric(get_summary_val("현금 보유량", 22)),   # W열
+    }
     
+    # 실시간 데이터 진단 (임시 추가)
+    # st.write("V-X 영역 관찰:", df.iloc[0:15, 21:24])
+
+    # 총 자산 계산 (Q6 참조 혹은 평가금+현금)
+    total_asset_q6 = parse_numeric(df.iloc[5, 16]) 
+    real_total = total_asset_q6 if total_asset_q6 > 0 else (sm["eval"] + sm["cash"])
+
     invest_start = str(df.iloc[11, 15])           # P12: 투자 시작일
     invest_days = str(df.iloc[11, 17])            # R12: 투자일/경과일
-    
-    total_asset_q6 = parse_numeric(df.iloc[5, 16]) # Q6: 전체 자산 합계
-
-    sm = {
-        "eval":   parse_numeric(row_total[21]),    # V (인덱스 21)
-        "buy":    parse_numeric(row_total[22]),    # W (인덱스 22)
-        "profit": parse_numeric(row_total[23]),    # X (인덱스 23)
-        "rate":   str(row_total[24]),              # Y (인덱스 24) - 수익률
-        "daily":  parse_numeric(row_total[9]),     # J18 (인덱스 9)
-        "accum":  parse_numeric(row_total[8]),
-        "cash":   parse_numeric(row_sub[3]),
-        "total":  total_asset_q6 if total_asset_q6 > 0 else parse_numeric(row_total[13]),
-    }
-    real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
 
     def get_color_class(val):
         nums = parse_numeric(val)
@@ -173,11 +187,18 @@ if df is not None:
           <div class="metric-label">누적 수익금</div>
           <div class="metric-value {get_color_class(sm['profit'])}">
             {int(sm['profit']):+,}
-            <span style="font-size:15px; font-weight:500; margin-left:4px;">({sm['rate']})</span>
+            <span style="font-size:15px; font-weight:500; margin-left:4px;">({sm['rate'] if sm['rate'] != '0' else '-%'})</span>
           </div>
           <div class="metric-sub">원</div>
         </div>
-        <div class="metric-card"><div class="metric-label">금일 변동액</div><div class="metric-value {get_color_class(sm['daily'])}">{int(sm['daily']):+,}</div><div class="metric-sub">원</div></div>
+        <div class="metric-card">
+          <div class="metric-label">금일 변동액</div>
+          <div class="metric-value {get_color_class(sm['daily'])}">
+            {int(sm['daily']):+,}
+            <span style="font-size:15px; font-weight:500; margin-left:4px;">({sm['daily_rate'] if sm['daily_rate'] != '0' else '-%'})</span>
+          </div>
+          <div class="metric-sub">원</div>
+        </div>
         <div class="metric-card"><div class="metric-label">현금 보유량</div><div class="metric-value">{int(sm['cash']):,}</div><div class="metric-sub">원</div></div>
       </div>
 
