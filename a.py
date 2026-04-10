@@ -50,8 +50,10 @@ df = fetch_data()
 
 if df is not None:
     # --- 데이터 추출 및 정밀 매핑 ---
-    dom = df.iloc[1:9, 0:10].copy()
-    us = df.iloc[11:15, 0:10].copy()
+    # 사용 컬럼: 0:명칭, 1:비중, 2:수량, 3:평가금, 4:매수금, 5:수익금, 6:평단가, 7:현재가, 20:전일비(U), 9:수익률(J)
+    cols = [0, 1, 2, 3, 4, 5, 6, 7, 20, 9]
+    dom = df.iloc[1:9, cols].copy()
+    us = df.iloc[11:15, cols].copy()
     stocks_raw = pd.concat([dom, us])
     stocks_raw.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
     # stocks 전처리: Name이 있고 공백이 아닌 것만
