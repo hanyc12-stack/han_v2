@@ -107,7 +107,7 @@ if df is not None:
             .card {{ background: #242422 !important; border-color: rgba(255,255,255,0.1) !important; }}
             .metric-card {{ background: #2c2c2a !important; }}
             .stock-table th {{ color: #888780 !important; border-color: rgba(255,255,255,0.1) !important; }}
-            .stock-table td {{ border-color: rgba(255,255,255,0.07) !important; color: #e8e6df !important; }}
+            .stock-table td {{ border-color: rgba(255,255,255,0.07) !important; }}
             .card-title, .metric-label {{ color: #888780 !important; }}
             .stock-table th:first-child, .stock-table td:first-child {{ background: #242422 !important; }}
         }}
@@ -118,8 +118,8 @@ if df is not None:
         .metric-card {{ background: #fff; border: 1px solid rgba(0,0,0,0.05); border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }}
         .metric-label {{ font-size: 13px; color: #888780; margin-bottom: 8px; font-weight: 500; }}
         .metric-value {{ font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }}
-        .up {{ color: #D85A30 !important; }}
-        .down {{ color: #3266AD !important; }}
+        .up {{ color: #FF5252 !important; font-weight: 700 !important; }}
+        .down {{ color: #448AFF !important; font-weight: 700 !important; }}
         .flat {{ color: #888780 !important; }}
         .card {{ background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 20px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 24px; }}
         .card-title {{ font-size: 17px; font-weight: 700; margin-bottom: 20px; }}
@@ -146,9 +146,10 @@ if df is not None:
         }}
         .stock-table th:first-child {{ z-index: 3; }}
 
-        .badge {{ display: inline-block; font-size: 10.5px; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
-        .badge.up {{ background: #FAECE7; color: #D85A30; }}
-        .badge.down {{ background: #E7F0FA; color: #3266AD; }}
+        .st-badge {{ display: inline-block; font-size: 10.5px; padding: 3px 8px; border-radius: 6px; font-weight: 700 !important; }}
+        .st-badge.up {{ background: #FAECE7 !important; color: #FF5252 !important; }}
+        .st-badge.down {{ background: #E7F0FA !important; color: #448AFF !important; }}
+        .st-badge.flat {{ background: #F0F0F0 !important; color: #888780 !important; }}
 
         /* 모바일 최적화 */
         @media (max-width: 600px) {{
@@ -160,7 +161,7 @@ if df is not None:
             .card {{ padding: 12px; border-radius: 12px; }}
             .stock-table {{ font-size: 11.5px; }}
             .stock-table th, .stock-table td {{ padding: 8px 4px; }}
-            .badge {{ font-size: 10px; padding: 2px 6px; }}
+            .st-badge {{ font-size: 10px; padding: 2px 6px; }}
         }}
     </style>
     
@@ -184,7 +185,29 @@ if df is not None:
           <table class="stock-table">
             <thead><tr><th style="text-align:left;">종목명</th><th>비중</th><th>현재가</th><th>평단가</th><th>주당전일비</th><th>금액전일비</th><th>수익금(수익률)</th></tr></thead>
             <tbody>
-              {''.join([f"<tr><td>{r['Name']}</td><td>{r['Weight']}</td><td>{format_price(r['CurPrice'])}</td><td>{format_price(r['AvgPrice'])}</td><td class='{get_color_class(r['Diff'])}'>{format_price(r['Diff'])}</td><td class='{get_color_class(r['TotalDiff'])}'>{format_price(r['TotalDiff'])}</td><td><span class='badge {get_color_class(r['Profit'])}'>{format_price(r['Profit'])} ({r['Rate']})</span></td></tr>" for _, r in stocks.iterrows()])}
+              {''.join([
+                  f"""<tr>
+                      <td>{r['Name']}</td>
+                      <td>{r['Weight']}</td>
+                      <td>{format_price(r['CurPrice'])}</td>
+                      <td>{format_price(r['AvgPrice'])}</td>
+                      <td>
+                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10px; background:{'#FAECE7' if parse_numeric(r['Diff']) > 0 else '#E7F0FA' if parse_numeric(r['Diff']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['Diff']) > 0 else '#448AFF' if parse_numeric(r['Diff']) < 0 else '#888780'};">
+                              {format_price(r['Diff'])}
+                          </div>
+                      </td>
+                      <td>
+                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10px; background:{'#FAECE7' if parse_numeric(r['TotalDiff']) > 0 else '#E7F0FA' if parse_numeric(r['TotalDiff']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['TotalDiff']) > 0 else '#448AFF' if parse_numeric(r['TotalDiff']) < 0 else '#888780'};">
+                              {format_price(r['TotalDiff'])}
+                          </div>
+                      </td>
+                      <td>
+                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10px; background:{'#FAECE7' if parse_numeric(r['Profit']) > 0 else '#E7F0FA' if parse_numeric(r['Profit']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['Profit']) > 0 else '#448AFF' if parse_numeric(r['Profit']) < 0 else '#888780'};">
+                              {format_price(r['Profit'])} ({r['Rate']})
+                          </div>
+                      </td>
+                  </tr>""" for _, r in stocks.iterrows()
+              ])}
             </tbody>
           </table>
         </div>
