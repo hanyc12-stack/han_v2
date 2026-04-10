@@ -4,7 +4,7 @@ import requests
 import io
 import re
 
-# 1. Page Configuration
+# 1. 페이지 설정
 st.set_page_config(
     page_title="Hstock V1.1 Dashboard",
     page_icon="📈",
@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. Data Engine Functions
+# 2. 데이터 엔진 함수
 def parse_numeric(v):
     if pd.isna(v) or v == "" or v == "-": return 0.0
     s = str(v).replace(',', '').replace('원', '').replace('%', '').strip()
