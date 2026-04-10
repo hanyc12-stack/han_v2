@@ -79,14 +79,14 @@ if df is not None:
     total_asset_q6 = parse_numeric(df.iloc[5, 16]) # Q6: 전체 자산 합계
 
     sm = {
-        "eval":  parse_numeric(row_total[3]),
-        "buy":   parse_numeric(row_total[4]),
-        "profit": parse_numeric(row_total[7]),    # H18 (인덱스 7)
-        "rate":  str(row_total[6]),
-        "daily": parse_numeric(row_total[9]),    # J18 (인덱스 9)
-        "accum": parse_numeric(row_total[8]),
-        "cash":  parse_numeric(row_sub[3]),
-        "total": total_asset_q6 if total_asset_q6 > 0 else parse_numeric(row_total[13]),
+        "eval":   parse_numeric(row_total[21]),    # V (인덱스 21)
+        "buy":    parse_numeric(row_total[22]),    # W (인덱스 22)
+        "profit": parse_numeric(row_total[23]),    # X (인덱스 23)
+        "rate":   str(row_total[24]),              # Y (인덱스 24) - 수익률
+        "daily":  parse_numeric(row_total[9]),     # J18 (인덱스 9)
+        "accum":  parse_numeric(row_total[8]),
+        "cash":   parse_numeric(row_sub[3]),
+        "total":  total_asset_q6 if total_asset_q6 > 0 else parse_numeric(row_total[13]),
     }
     real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
 
@@ -118,7 +118,7 @@ if df is not None:
         .metric-card {{ background: #fff; border: 1px solid rgba(0,0,0,0.05); border-radius: 16px; padding: 22px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: transform 0.2s; }}
         .metric-card:hover {{ transform: translateY(-2px); }}
         .metric-label {{ font-size: 13.5px; color: #888780; margin-bottom: 10px; font-weight: 500; }}
-        .metric-value {{ font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }}
+        .metric-value {{ font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }}
         .metric-sub {{ font-size: 14px; margin-top: 6px; font-weight: 500; }}
         .up {{ color: #D85A30 !important; }}
         .down {{ color: #3266AD !important; }}
@@ -171,8 +171,11 @@ if df is not None:
         <div class="metric-card"><div class="metric-label">매수금액</div><div class="metric-value">{int(sm['buy']):,}</div><div class="metric-sub">원</div></div>
         <div class="metric-card">
           <div class="metric-label">누적 수익금</div>
-          <div class="metric-value {get_color_class(sm['profit'])}">{int(sm['profit']):+,}</div>
-          <div class="metric-sub {get_color_class(sm['profit'])}">{sm['rate']}</div>
+          <div class="metric-value {get_color_class(sm['profit'])}">
+            {int(sm['profit']):+,}
+            <span style="font-size:15px; font-weight:500; margin-left:4px;">({sm['rate']})</span>
+          </div>
+          <div class="metric-sub">원</div>
         </div>
         <div class="metric-card"><div class="metric-label">금일 변동액</div><div class="metric-value {get_color_class(sm['daily'])}">{int(sm['daily']):+,}</div><div class="metric-sub">원</div></div>
         <div class="metric-card"><div class="metric-label">현금 보유량</div><div class="metric-value">{int(sm['cash']):,}</div><div class="metric-sub">원</div></div>
