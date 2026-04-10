@@ -77,6 +77,10 @@ if df is not None:
     }
     real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
 
+    def get_color_class(val):
+        nums = parse_numeric(val)
+        return 'up' if nums > 0 else 'down' if nums < 0 else 'flat'
+
     # --- UI 템플릿 및 스타일 ---
     st.markdown(f"""
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -94,29 +98,35 @@ if df is not None:
             .stock-table td {{ border-color: rgba(255,255,255,0.07) !important; color: #e8e6df !important; }}
             .card-title, .metric-label, .metric-sub {{ color: #888780 !important; }}
         }}
-        .dash {{ max-width: 1100px; margin: 0 auto; padding: 12px 24px; }}
+        .dash {{ max-width: 1250px; margin: 0 auto; padding: 12px 24px; }}
         .header {{ display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 24px; }}
         .header-left .total {{ font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }}
         .metric-grid {{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }}
         .metric-card {{ background: #ebebea; border-radius: 12px; padding: 16px; transition: all 0.2s; }}
-        .metric-label {{ font-size: 12px; color: #888780; margin-bottom: 6px; font-weight: 500; }}
+        .metric-label {{ font-size: 11px; color: #888780; margin-bottom: 6px; font-weight: 500; }}
         .metric-value {{ font-size: 20px; font-weight: 700; }}
         .metric-sub {{ font-size: 13px; margin-top: 4px; font-weight: 500; }}
-        .up {{ color: #1D9E75 !important; }}
-        .down {{ color: #D85A30 !important; }}
+        .up {{ color: #D85A30 !important; }}
+        .down {{ color: #3266AD !important; }}
+        .flat {{ color: #888780 !important; }}
         .card {{ background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 18px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01); }}
         .card-title {{ font-size: 15px; font-weight: 700; color: #333; margin-bottom: 20px; }}
-        .stock-table {{ width: 100%; border-collapse: collapse; font-size: 13.5px; }}
+        .stock-table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
         .stock-table th {{ color: #888780; font-weight: 500; padding: 8px 6px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.08); }}
         .stock-table th:first-child {{ text-align: left; }}
         .stock-table td {{ padding: 12px 6px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.04); }}
         .stock-table td:first-child {{ text-align: left; font-weight: 600; color: #1a1a18; }}
         .badge {{ display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
-        .badge.up {{ background: #EAF3DE; color: #3B6D11; }}
-        .badge.down {{ background: #FAECE7; color: #993C1D; }}
+        .badge.up {{ background: #FAECE7; color: #D85A30; }}
+        .badge.down {{ background: #E7F0FA; color: #3266AD; }}
+        .badge.flat {{ background: #F0F0F0; color: #888780; }}
+        @media (max-width: 1024px) {{
+          .metric-grid {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
+          .stock-table {{ font-size: 12px; }}
+        }}
         @media (max-width: 768px) {{
           .metric-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
-          .metric-value {{ font-size: 18px; }}
+          .stock-table {{ font-size: 11px; }}
         }}
     </style>
     
@@ -137,19 +147,43 @@ if df is not None:
         <div class="metric-card"><div class="metric-label">매수금액</div><div class="metric-value">{int(sm['buy']):,}</div><div class="metric-sub">원</div></div>
         <div class="metric-card">
           <div class="metric-label">누적 수익금</div>
-          <div class="metric-value {'up' if sm['profit']>=0 else 'down'}">{int(sm['profit']):+,}</div>
-          <div class="metric-sub {'up' if sm['profit']>=0 else 'down'}">{sm['rate']}</div>
+          <div class="metric-value {get_color_class(sm['profit'])}">{int(sm['profit']):+,}</div>
+          <div class="metric-sub {get_color_class(sm['profit'])}">{sm['rate']}</div>
         </div>
-        <div class="metric-card"><div class="metric-label">금일 변동액</div><div class="metric-value {'up' if sm['daily']>=0 else 'down'}">{int(sm['daily']):+,}</div><div class="metric-sub">원</div></div>
+        <div class="metric-card"><div class="metric-label">금일 변동액</div><div class="metric-value {get_color_class(sm['daily'])}">{int(sm['daily']):+,}</div><div class="metric-sub">원</div></div>
         <div class="metric-card"><div class="metric-label">현금 보유량</div><div class="metric-value">{int(sm['cash']):,}</div><div class="metric-sub">원</div></div>
       </div>
 
       <div class="card" style="width: 100%;">
         <div class="card-title">보유 종목 현황</div>
         <table class="stock-table">
-          <thead><tr><th>종목명</th><th>비중</th><th>현재가</th><th>평단가</th><th>수익률</th></tr></thead>
+          <thead>
+            <tr>
+              <th>종목명</th>
+              <th>비중</th>
+              <th>현재가</th>
+              <th>평단가</th>
+              <th>1주 전일비</th>
+              <th>총액 전일비</th>
+              <th>수익금(수익률)</th>
+            </tr>
+          </thead>
           <tbody>
-            {''.join([f"<tr><td>{r['Name']}</td><td>{r['Weight']}</td><td>{format_price(r['CurPrice'])}</td><td>{format_price(r['AvgPrice'])}</td><td><span class='badge {'up' if parse_numeric(r['Rate'])>=0 else 'down' if parse_numeric(r['Rate'])<0 else 'flat'}'>{r['Rate'] if r['Name']!='현금' else '안전자산'}</span></td></tr>" for _, r in stocks.iterrows()])}
+            {''.join([
+                f"""<tr>
+                    <td>{r['Name']}</td>
+                    <td>{r['Weight']}</td>
+                    <td>{format_price(r['CurPrice'])}</td>
+                    <td>{format_price(r['AvgPrice'])}</td>
+                    <td class='{get_color_class(r['Diff'])}'>{format_price(r['Diff'])}</td>
+                    <td class='{get_color_class(parse_numeric(r['Qty']) * parse_numeric(r['Diff']))}'>
+                        {format_price(parse_numeric(r['Qty']) * parse_numeric(r['Diff']))}
+                    </td>
+                    <td><span class='badge {get_color_class(r['Profit'])}'>
+                        {format_price(r['Profit'])} ({r['Rate']})
+                    </span></td>
+                </tr>""" for _, r in stocks.iterrows() if r['Name'].strip() not in ["", "합계"]
+            ])}
           </tbody>
         </table>
       </div>
