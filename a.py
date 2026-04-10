@@ -51,8 +51,8 @@ def fetch_data():
 df = fetch_data()
 
 if df is not None:
-    # 진단용 출력
-    # st.write("Brokerage 데이터 확인:", df.iloc[0:20, 11:14])
+    # 진단용 출력 (한시적 허용)
+    st.write("🔍 데이터 진단 (L-M열):", df.iloc[0:20, 11:13])
     
     # 헬퍼: V열(21)에서 항목명을 찾아 W열(22) 또는 X열(23) 값을 가져옴
     def get_summary_val(label, col_target=22):
@@ -243,42 +243,32 @@ if df is not None:
     import streamlit.components.v1 as components
     import json
 
-    # 1. 종목 비중 데이터 가공
-    # 레이블에 % 값을 포함하여 가독성 증대
-    stock_labels = [f"{n} ({w if '%' in str(w) else f'{parse_numeric(w)}%'})" for n, w in zip(stocks['Name'], stocks['Weight'])]
+    # 1. 종목 비중 데이터 (이름만 전달, 비중은 차트 내부 플러그인에서 처리)
+    stock_labels = stocks['Name'].tolist()
     stock_values = [parse_numeric(w) for w in stocks['Weight']]
     
-    # 2. 증권사 비중 데이터 가공 (키워드 매핑 방식 도입)
+    # 2. 증권사 비중 데이터 (로직 대폭 강화: 패턴 매칭 방식)
+    br_labels, br_values = [], []
     try:
-        # L열(11)에서 '증권사' 키워드가 있는 시작 행 찾기
-        br_start_idx = df[df[11].astype(str).str.contains("증권사", na=False)].index
-        if not br_start_idx.empty:
-            start_row = br_start_idx[0] + 1
-            # 시작행부터 최대 15개 행 추출
-            br_raw = df.iloc[start_row:start_row+15, [11, 12]].copy()
-            br_raw.columns = ['Name', 'Weight']
-            
-            # 유효 데이터 필터링 (이름이 있고, 비중이 0보다 큰 경우)
-            br_clean = br_raw[
-                br_raw['Name'].notna() & 
-                (br_raw['Name'].str.strip() != "") &
-                (~br_raw['Name'].astype(str).str.contains("Total|합계|계", case=False)) &
-                (br_raw['Weight'].apply(parse_numeric) > 0)
-            ].copy()
-            
-            br_labels = [f"{n} ({w if '%' in str(w) else f'{parse_numeric(w)}%'})" for n, w in zip(br_clean['Name'], br_clean['Weight'])]
-            br_values = [parse_numeric(w) for w in br_clean['Weight']]
-        else:
-            br_labels, br_values = [], []
+        # L(11), M(12) 범위 스캔
+        search_range = df.iloc[0:40, [11, 12]]
+        for _, row in search_range.iterrows():
+            name = str(row[11]).strip()
+            val = parse_numeric(row[12])
+            # 유효성 검사: 이름이 있고, 헤더/합계가 아니며, 비중이 0보다 큰 경우
+            if name and name not in ["증권사", "Total", "합계", "계", "nan", "Name", "-"] and val > 0:
+                br_labels.append(name)
+                br_values.append(val)
     except:
-        br_labels, br_values = [], []
+        pass
 
     chart_html = f"""
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <style>
         body {{ font-family: 'Noto Sans KR', sans-serif; background: transparent; margin: 0; padding: 0; overflow: hidden; }}
-        .chart-container {{ display: flex; gap: 24px; padding: 10px; }}
+        .chart-container {{ display: flex; gap: 24px; padding: 10px; justify-content: space-around; }}
         .card {{ 
             background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 20px; 
             padding: 24px; width: 48%; box-shadow: 0 4px 15px rgba(0,0,0,0.04);
@@ -289,6 +279,10 @@ if df is not None:
         @media (prefers-color-scheme: dark) {{
             .card {{ background: #242422; border-color: rgba(255,255,255,0.1); }}
             .card-title {{ color: #e8e6df; }}
+        }}
+        @media (max-width: 768px) {{
+            .chart-container {{ flex-direction: column; overflow-y: auto; }}
+            .card {{ width: 100%; height: 350px; }}
         }}
     </style>
     <div class="chart-container">
@@ -302,7 +296,9 @@ if df is not None:
         </div>
     </div>
     <script>
+        Chart.register(ChartDataLabels);
         const colors = ['#E57373', '#64B5F6', '#81C784', '#FFF176', '#FFB74D', '#BA68C8', '#A1887F', '#90A4AE', '#4DB6AC', '#AED581'];
+        
         const createCfg = (labels, data) => ({{
             type: 'doughnut',
             data: {{
@@ -320,28 +316,25 @@ if df is not None:
                 plugins: {{
                     legend: {{ 
                         position: 'right', 
-                        labels: {{ 
-                            padding: 12, 
-                            font: {{ size: 11 }},
-                            generateLabels: (chart) => {{
-                                const data = chart.data;
-                                if (data.labels.length && data.datasets.length) {{
-                                    return data.labels.map((label, i) => ({{
-                                        text: label,
-                                        fillStyle: data.datasets[0].backgroundColor[i % colors.length],
-                                        hidden: false,
-                                        index: i
-                                    }}));
-                                }}
-                                return [];
-                            }}
-                        }} 
+                        labels: {{ padding: 12, font: {{ size: 12, family: 'Noto Sans KR' }} }} 
+                    }},
+                    datalabels: {{
+                        color: '#fff',
+                        font: {{ weight: 'bold', size: 11 }},
+                        formatter: (value) => {{
+                            return (value > 2) ? value.toFixed(1) + '%' : ''; // 2% 미만은 표시 생략 (가독성)
+                        }},
+                        anchor: 'center',
+                        align: 'center',
+                        textShadowBlur: 2,
+                        textShadowColor: 'rgba(0,0,0,0.3)'
                     }},
                     tooltip: {{ enabled: true }}
                 }},
                 cutout: '65%'
             }}
         }});
+
         if ({json.dumps(stock_labels)}.length > 0)
             new Chart(document.getElementById('stockChart'), createCfg({json.dumps(stock_labels)}, {json.dumps(stock_values)}));
         if ({json.dumps(br_labels)}.length > 0)
