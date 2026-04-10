@@ -1,15 +1,10 @@
-죄송합니다! 제가 설명해 드린 문장이 코드에 포함되어 복사된 것 같습니다.
-
-아래는 **코드만 깔끔하게 정리한 내용**입니다. 이 내용을 그대로 전체 복사하여 `a.py` 파일에 덮어쓰기 해주세요. (맨 윗줄에 `import streamlit as st`가 오도록 해주시면 됩니다.)
-
-```python
 import streamlit as st
 import pandas as pd
 import requests
 import io
 import re
 
-# 1. 페이지 설정
+# 1. Page Configuration
 st.set_page_config(
     page_title="Hstock V1.1 Dashboard",
     page_icon="📈",
@@ -17,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. 데이터 엔진 함수
+# 2. Data Engine Functions
 def parse_numeric(v):
     if pd.isna(v) or v == "" or v == "-": return 0.0
     s = str(v).replace(',', '').replace('원', '').replace('%', '').strip()
@@ -222,7 +217,7 @@ if df is not None:
         }},
         options: {{
           responsive: true, maintainAspectRatio: false,
-          plugins: {{ legend: {{ display: false }} }},
+          plugins: {{ legend: {{ display: false }}, tooltip: {{ enabled: true }} }},
           scales: {{
             x: {{ ticks: {{ font: {{ size: 11 }}, color: '#888780' }}, grid: {{ display: false }} }},
             y: {{ ticks: {{ color: '#888780' }}, grid: {{ color: 'rgba(136,135,128,0.1)' }} }}
@@ -233,4 +228,3 @@ if df is not None:
     """, height=240)
 else:
     st.error("데이터 로딩 실패")
-```
