@@ -1,3 +1,8 @@
+`ValueError` 문제는 종목 리스트의 **'현금'** 항목처럼 현재가가 숫자가 아닌 경우(예: `-`) 발생합니다. 이를 안전하게 처리할 수 있도록 숫자인 경우만 콤마(,)를 붙이고, 그 외에는 그대로 표시하도록 수정했습니다.
+
+아래 코드를 전체 복사하여 **`a.py`**에 덮어쓰기 해주시면 에러 없이 정상적으로 작동합니다.
+
+```python
 import streamlit as st
 import pandas as pd
 import requests
@@ -23,6 +28,16 @@ def parse_numeric(v):
         nums = re.findall(r'-?\d+\.?\d*', s)
         return float(nums[0]) if nums else 0.0
 
+def format_price(v):
+    # 숫자로 변환 가능한 경우만 콤마 포맷팅, 아니면 그대로 반환
+    try:
+        val = parse_numeric(v)
+        if val == 0 and (pd.isna(v) or str(v).strip() in ["-", ""]):
+            return "-"
+        return f"{int(val):,}"
+    except:
+        return "-"
+
 # 시트 설정 (GID 1550923272)
 SHEET_ID = "1WqEb6mn8eFH41mCj3BrrH_pSZMRECFR4qCHI1PmjeBg"
 GID = "1550923272" 
@@ -47,17 +62,16 @@ if df is not None:
     stocks_raw.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
     stocks = stocks_raw[stocks_raw['Name'].notna() & (stocks_raw['Name'].str.strip() != "")].copy()
 
-    # 요약 지표 (Row 18, 17)
+    # 요약 지표
     row_total = df.iloc[17]
     row_sub = df.iloc[16]
     
-    total_cnt = parse_numeric(df.iloc[7, 15]) # P8
-    win_cnt = parse_numeric(df.iloc[7, 16])   # Q8
-    loss_cnt = parse_numeric(df.iloc[7, 17])  # R8
-    invest_start = str(df.iloc[10, 16])       # Q11
-    invest_days = str(df.iloc[10, 17])        # R11
+    total_cnt = parse_numeric(df.iloc[7, 15]) 
+    win_cnt = parse_numeric(df.iloc[7, 16])   
+    loss_cnt = parse_numeric(df.iloc[7, 17])  
+    invest_start = str(df.iloc[10, 16])       
+    invest_days = str(df.iloc[10, 17])        
 
-    # 0 나누기 방지 안전 계산
     win_p = (win_cnt / total_cnt * 100) if total_cnt > 0 else 0.0
     loss_p = (loss_cnt / total_cnt * 100) if total_cnt > 0 else 0.0
 
@@ -112,6 +126,7 @@ if df is not None:
         .badge {{ display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 500; }}
         .badge.up {{ background: #EAF3DE; color: #3B6D11; }}
         .badge.down {{ background: #FAECE7; color: #993C1D; }}
+        .badge.flat {{ background: #ebebea; color: #888780; }}
         .bar-row {{ display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 12px; }}
         .bar-label {{ width: 90px; color: #888780; flex-shrink: 0; }}
         .bar-track {{ flex: 1; height: 7px; background: #ebebea; border-radius: 4px; overflow: hidden; }}
@@ -172,7 +187,7 @@ if df is not None:
           <table class="stock-table">
             <thead><tr><th>종목명</th><th>비중</th><th>현재가</th><th>평단가</th><th>수익률</th></tr></thead>
             <tbody>
-              {''.join([f"<tr><td>{r['Name']}</td><td>{r['Weight']}</td><td>{int(r['CurPrice']):,}</td><td>{int(r['AvgPrice']):,}</td><td><span class='badge {'up' if parse_numeric(r['Rate'])>=0 else 'down'}'>{r['Rate']}</span></td></tr>" for _, r in stocks.iterrows()])}
+              {''.join([f"<tr><td>{r['Name']}</td><td>{r['Weight']}</td><td>{format_price(r['CurPrice'])}</td><td>{format_price(r['AvgPrice'])}</td><td><span class='badge {'up' if parse_numeric(r['Rate'])>=0 else 'down' if parse_numeric(r['Rate'])<0 else 'flat'}'>{r['Rate'] if r['Name']!='현금' else '안전자산'}</span></td></tr>" for _, r in stocks.iterrows()])}
             </tbody>
           </table>
         </div>
@@ -228,3 +243,4 @@ if df is not None:
     """, height=240)
 else:
     st.error("데이터 로딩 실패")
+```
