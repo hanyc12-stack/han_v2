@@ -1,8 +1,6 @@
-`ZeroDivisionError` 문제를 확실하게 해결했습니다.
+죄송합니다! 제가 설명해 드린 문장이 코드에 포함되어 복사된 것 같습니다.
 
-이전 코드에서 계산식(`win_cnt/total_cnt`)이 HTML 템플릿의 f-string 내부에 직접 들어가 있어, 분모(`total_cnt`)가 0일 때 앱이 멈추는 현상이 있었습니다. 이를 미리 계산된 안전한 변수(`win_p`, `loss_p`)를 사용하도록 수정했습니다.
-
-아래의 **전체 코드**를 복사하여 `a.py`에 적용해 주세요. 이제 종목이 없는 상태에서도 에러 없이 대시보드가 로드됩니다.
+아래는 **코드만 깔끔하게 정리한 내용**입니다. 이 내용을 그대로 전체 복사하여 `a.py` 파일에 덮어쓰기 해주세요. (맨 윗줄에 `import streamlit as st`가 오도록 해주시면 됩니다.)
 
 ```python
 import streamlit as st
@@ -54,17 +52,17 @@ if df is not None:
     stocks_raw.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
     stocks = stocks_raw[stocks_raw['Name'].notna() & (stocks_raw['Name'].str.strip() != "")].copy()
 
-    # 요약 지표
+    # 요약 지표 (Row 18, 17)
     row_total = df.iloc[17]
     row_sub = df.iloc[16]
     
-    total_cnt = parse_numeric(df.iloc[7, 15])
-    win_cnt = parse_numeric(df.iloc[7, 16])
-    loss_cnt = parse_numeric(df.iloc[7, 17])
-    invest_start = str(df.iloc[10, 16])
-    invest_days = str(df.iloc[10, 17])
+    total_cnt = parse_numeric(df.iloc[7, 15]) # P8
+    win_cnt = parse_numeric(df.iloc[7, 16])   # Q8
+    loss_cnt = parse_numeric(df.iloc[7, 17])  # R8
+    invest_start = str(df.iloc[10, 16])       # Q11
+    invest_days = str(df.iloc[10, 17])        # R11
 
-    # --- 0 나누기 방지 안전 계산 ---
+    # 0 나누기 방지 안전 계산
     win_p = (win_cnt / total_cnt * 100) if total_cnt > 0 else 0.0
     loss_p = (loss_cnt / total_cnt * 100) if total_cnt > 0 else 0.0
 
@@ -224,7 +222,7 @@ if df is not None:
         }},
         options: {{
           responsive: true, maintainAspectRatio: false,
-          plugins: {{ legend: {{ display: false }}, tooltip: {{ enabled: true }} }},
+          plugins: {{ legend: {{ display: false }} }},
           scales: {{
             x: {{ ticks: {{ font: {{ size: 11 }}, color: '#888780' }}, grid: {{ display: false }} }},
             y: {{ ticks: {{ color: '#888780' }}, grid: {{ color: 'rgba(136,135,128,0.1)' }} }}
