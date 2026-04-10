@@ -50,8 +50,15 @@ df = fetch_data()
 
 if df is not None:
     # --- 데이터 추출 및 정밀 매핑 ---
-    # 사용 컬럼: 0:명칭, 1:비중, 2:수량, 3:평가금, 4:매수금, 5:수익금, 6:평단가, 7:현재가, 20:전일비(U), 9:수익률(J)
-    cols = [0, 1, 2, 3, 4, 5, 6, 7, 20, 9]
+    total_cols = df.shape[1]
+    # 사용자가 요청한 U열(20)이 존재하는지 확인, 없으면 기존 8(I열) 사용
+    target_diff_col = 20 if total_cols > 20 else 8
+    
+    if total_cols <= 20:
+        st.warning(f"⚠️ 시트에 U열(20번) 데이터가 확인되지 않아 기존 I열(8번) 데이터를 참조합니다. (현재 전체 컬럼 수: {total_cols}개)")
+
+    # 사용 컬럼: 0:명칭, 1:비중, 2:수량, 3:평가금, 4:매수금, 5:수익금, 6:평단가, 7:현재가, target_diff_col:전일비, 9:수익률(J)
+    cols = [0, 1, 2, 3, 4, 5, 6, 7, target_diff_col, 9]
     dom = df.iloc[1:9, cols].copy()
     us = df.iloc[11:15, cols].copy()
     stocks_raw = pd.concat([dom, us])
