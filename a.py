@@ -163,8 +163,8 @@ if df is not None:
               <th>비중</th>
               <th>현재가</th>
               <th>평단가</th>
-              <th>1주 전일비</th>
-              <th>총액 전일비</th>
+              <th>주당 전일비</th>
+              <th>일일 총변동</th>
               <th>수익금(수익률)</th>
             </tr>
           </thead>
