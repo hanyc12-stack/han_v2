@@ -60,12 +60,6 @@ if df is not None:
     row_total = df.iloc[17]
     row_sub = df.iloc[16]
     
-    total_cnt = parse_numeric(df.iloc[8, 15])     # P9: 종목수
-    win_cnt = parse_numeric(df.iloc[8, 16])       # Q9: 수익 종목수
-    win_p_str = str(df.iloc[9, 16])               # Q10: 수익률%
-    loss_cnt = parse_numeric(df.iloc[8, 17])      # R9: 손실 종목수
-    loss_p_str = str(df.iloc[9, 17])              # R10: 손실률%
-    
     invest_start = str(df.iloc[11, 15])           # P12: 투자 시작일
     invest_days = str(df.iloc[11, 17])            # R12: 투자일/경과일
     
@@ -84,9 +78,6 @@ if df is not None:
     real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
 
     # --- UI 템플릿 및 스타일 ---
-    brokerage_colors = ['#3266AD', '#7F77DD', '#1D9E75', '#EAB308', '#D85A30', '#DB2777', '#888780', '#6366F1', '#10B981', '#F59E0B']
-    exclude_list = ["비중", "유형", "항목", "증권사", "Total", "합계", "계", "total", "합", "종목"]
-
     st.markdown(f"""
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -101,21 +92,19 @@ if df is not None:
             .metric-card {{ background: #2c2c2a !important; }}
             .stock-table th {{ color: #888780 !important; border-color: rgba(255,255,255,0.1) !important; }}
             .stock-table td {{ border-color: rgba(255,255,255,0.07) !important; color: #e8e6df !important; }}
-            .bar-track {{ background: #3a3a38 !important; }}
-            .card-title, .metric-label, .metric-sub, .bar-label {{ color: #888780 !important; }}
+            .card-title, .metric-label, .metric-sub {{ color: #888780 !important; }}
         }}
         .dash {{ max-width: 1100px; margin: 0 auto; padding: 12px 24px; }}
-        .header {{ display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }}
+        .header {{ display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 24px; }}
         .header-left .total {{ font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }}
-        .metric-grid {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }}
+        .metric-grid {{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }}
         .metric-card {{ background: #ebebea; border-radius: 12px; padding: 16px; transition: all 0.2s; }}
         .metric-label {{ font-size: 12px; color: #888780; margin-bottom: 6px; font-weight: 500; }}
-        .metric-value {{ font-size: 22px; font-weight: 700; }}
+        .metric-value {{ font-size: 20px; font-weight: 700; }}
         .metric-sub {{ font-size: 13px; margin-top: 4px; font-weight: 500; }}
         .up {{ color: #1D9E75 !important; }}
         .down {{ color: #D85A30 !important; }}
-        .grid2 {{ display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 20px; margin-bottom: 20px; }}
-        .card {{ background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 18px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01); height: 100%; }}
+        .card {{ background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 18px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01); }}
         .card-title {{ font-size: 15px; font-weight: 700; color: #333; margin-bottom: 20px; }}
         .stock-table {{ width: 100%; border-collapse: collapse; font-size: 13.5px; }}
         .stock-table th {{ color: #888780; font-weight: 500; padding: 8px 6px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.08); }}
@@ -125,20 +114,9 @@ if df is not None:
         .badge {{ display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
         .badge.up {{ background: #EAF3DE; color: #3B6D11; }}
         .badge.down {{ background: #FAECE7; color: #993C1D; }}
-        .bar-row {{ display: flex; align-items: center; gap: 16px; margin-bottom: 16px; font-size: 14px; }}
-        .bar-label {{ width: 110px; color: #666; flex-shrink: 0; font-weight: 500; }}
-        .bar-track {{ flex: 1; height: 10px; background: #f0f0f0; border-radius: 5px; overflow: visible; position: relative; }}
-        .bar-fill {{ height: 100%; border-radius: 5px; position: relative; transition: width 0.8s ease; }}
-        .bar-fill::after {{
-            content: ''; position: absolute; right: -2px; top: -1.5px; width: 13px; height: 13px; 
-            border-radius: 50%; background: inherit; border: 2.5px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-        }}
-        .bar-pct {{ width: 60px; text-align: right; font-weight: 700; color: #1a1a18; }}
         @media (max-width: 768px) {{
           .metric-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
-          .grid2 {{ grid-template-columns: 1fr; }}
-          .bar-label {{ width: 85px; font-size: 12px; }}
-          .bar-pct {{ width: 50px; font-size: 12px; }}
+          .metric-value {{ font-size: 18px; }}
         }}
     </style>
     
@@ -163,71 +141,19 @@ if df is not None:
           <div class="metric-sub {'up' if sm['profit']>=0 else 'down'}">{sm['rate']}</div>
         </div>
         <div class="metric-card"><div class="metric-label">금일 변동액</div><div class="metric-value {'up' if sm['daily']>=0 else 'down'}">{int(sm['daily']):+,}</div><div class="metric-sub">원</div></div>
+        <div class="metric-card"><div class="metric-label">현금 보유량</div><div class="metric-value">{int(sm['cash']):,}</div><div class="metric-sub">원</div></div>
       </div>
 
-      <div class="grid2">
-        <div class="card">
-          <div class="card-title">보유 종목 현황</div>
-          <table class="stock-table">
-            <thead><tr><th>종목명</th><th>비중</th><th>현재가</th><th>평단가</th><th>수익률</th></tr></thead>
-            <tbody>
-              {''.join([f"<tr><td>{r['Name']}</td><td>{r['Weight']}</td><td>{format_price(r['CurPrice'])}</td><td>{format_price(r['AvgPrice'])}</td><td><span class='badge {'up' if parse_numeric(r['Rate'])>=0 else 'down' if parse_numeric(r['Rate'])<0 else 'flat'}'>{r['Rate'] if r['Name']!='현금' else '안전자산'}</span></td></tr>" for _, r in stocks.iterrows()])}
-            </tbody>
-          </table>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:20px;">
-          <div class="card">
-            <div class="card-title">자산 유형별 비중</div>
-            {''.join([f"<div class='bar-row'><div class='bar-label'>{r[15]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[17])}%;background:{'#3266AD' if r[15]=='국내주식' else '#1D9E75' if r[15]=='안전자산' else '#7F77DD' if r[15]=='해외성장' else '#D85A30'};'></div></div><div class='bar-pct'>{r[17]}</div></div>" for _, r in df.iloc[0:10, 15:18].iterrows() if not pd.isna(r[15]) and r[15] not in exclude_list and parse_numeric(r[17]) <= 100 and parse_numeric(r[17]) > 0])}
-          </div>
-          <div class="card">
-            <div class="card-title">증권사별 비중</div>
-            {''.join([f"<div class='bar-row'><div class='bar-label'>{r[11]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[12])}%;background:{brokerage_colors[i % len(brokerage_colors)]};'></div></div><div class='bar-pct'>{r[12]}</div></div>" for i, r in df.iloc[0:20, [11, 12]].iterrows() if not pd.isna(r[11]) and r[11] not in exclude_list and parse_numeric(r[12]) <= 100 and parse_numeric(r[12]) > 0])}
-          </div>
-          <div class="card" style="padding: 18px 24px; min-height: auto;">
-            <div class="metric-label">현금 보유량</div>
-            <div class="metric-value" style="font-size:20px; font-weight:700;">{int(sm['cash']):,}원</div>
-          </div>
-        </div>
-      </div>
-      <div class="card" style="margin-top: 20px;">
-        <div class="card-title">종목별 수익금 비교</div>
-        <div id="chart-container" style="width:100%; height:240px;"></div>
+      <div class="card" style="width: 100%;">
+        <div class="card-title">보유 종목 현황</div>
+        <table class="stock-table">
+          <thead><tr><th>종목명</th><th>비중</th><th>현재가</th><th>평단가</th><th>수익률</th></tr></thead>
+          <tbody>
+            {''.join([f"<tr><td>{r['Name']}</td><td>{r['Weight']}</td><td>{format_price(r['CurPrice'])}</td><td>{format_price(r['AvgPrice'])}</td><td><span class='badge {'up' if parse_numeric(r['Rate'])>=0 else 'down' if parse_numeric(r['Rate'])<0 else 'flat'}'>{r['Rate'] if r['Name']!='현금' else '안전자산'}</span></td></tr>" for _, r in stocks.iterrows()])}
+          </tbody>
+        </table>
       </div>
     </div>
     """, unsafe_allow_html=True)
-
-    # --- 차트 엔진 (Chart.js) ---
-    c_stocks = stocks[stocks['Profit'] != 0].copy()
-    c_stocks['Profit'] = c_stocks['Profit'].apply(parse_numeric)
-    c_stocks = c_stocks.sort_values('Profit', ascending=False)
-    
-    st.components.v1.html(f"""
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    <div style="height: 230px;"><canvas id="ctx"></canvas></div>
-    <script>
-      const ctx = document.getElementById('ctx');
-      new Chart(ctx, {{
-        type: 'bar',
-        data: {{
-          labels: {c_stocks['Name'].tolist()},
-          datasets: [{{
-            data: {c_stocks['Profit'].tolist()},
-            backgroundColor: {['#3266AD' if v >= 0 else '#D85A30' for v in c_stocks['Profit'].tolist()]},
-            borderRadius: 6,
-          }}]
-        }},
-        options: {{
-          responsive: true, maintainAspectRatio: false,
-          plugins: {{ legend: {{ display: false }}, tooltip: {{ enabled: true }} }},
-          scales: {{
-            x: {{ ticks: {{ font: {{ size: 11 }}, color: '#888780' }}, grid: {{ display: false }} }},
-            y: {{ ticks: {{ font: {{ size: 10 }}, color: '#888780' }}, grid: {{ color: 'rgba(0,0,0,0.05)' }} }}
-          }}
-        }}
-      }});
-    </script>
-    """, height=240)
 else:
     st.error("데이터 로딩 실패")
