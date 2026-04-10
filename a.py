@@ -53,15 +53,15 @@ df = fetch_data()
 if df is not None:
     # --- 데이터 추출 및 정밀 매핑 ---
     # 사용자 확인 기반 매핑 (A:0, B:1, C:2, D:3, E:4, F:5, G:6, H:7, I:8, J:9)
-    # 현재가:J(9), 평단가:I(8), 주당전일비:F(5), 수익금:H(7), 수익률:G(6), 비중:B(1)
-    cols = [0, 1, 2, 3, 4, 7, 8, 9, 5, 6]
+    # 현재가:J(9), 평단가:I(8), 주당전일비:F(5), 금액 전일비:G(6), 수익금:H(7), 수익률:K(10)추정, 비중:B(1)
+    # 컬럼 인덱스: 0:Name, 1:Weight, 2:Qty, 3:CurAmt, 4:BuyAmt, 7:Profit(H), 8:AvgPrice(I), 9:CurPrice(J), 5:Diff(F), 6:TotalDiff(G), 10:Rate(K)
+    cols = [0, 1, 2, 3, 4, 7, 8, 9, 5, 6, 10]
     
-    # 동적 행 추출: 고정 범위를 넓히고 불필요한 행(헤더 등) 필터링 (강원랜드 등 누락 방지)
+    # 동적 행 추출: 고정 범위를 넓히고 불필요한 행(헤더 등) 필터링
     exclude_keywords = ["비중", "유형", "항목", "증권사", "Total", "합계", "계", "total", "합", "종목", "Name"]
     
-    # 국내/해외 구분 없이 넓게 가져온 후 유효한 종목명만 필터링
     raw_stocks = df.iloc[1:60, cols].copy()
-    raw_stocks.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
+    raw_stocks.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'TotalDiff', 'Rate']
     
     stocks = raw_stocks[
         raw_stocks['Name'].notna() & 
@@ -81,9 +81,9 @@ if df is not None:
     sm = {
         "eval":  parse_numeric(row_total[3]),
         "buy":   parse_numeric(row_total[4]),
-        "profit": parse_numeric(row_total[5]),
+        "profit": parse_numeric(row_total[7]),    # H18 (인덱스 7)
         "rate":  str(row_total[6]),
-        "daily": parse_numeric(row_total[7]),
+        "daily": parse_numeric(row_total[9]),    # J18 (인덱스 9)
         "accum": parse_numeric(row_total[8]),
         "cash":  parse_numeric(row_sub[3]),
         "total": total_asset_q6 if total_asset_q6 > 0 else parse_numeric(row_total[13]),
@@ -200,8 +200,8 @@ if df is not None:
                     <td>{format_price(r['CurPrice'])}</td>
                     <td>{format_price(r['AvgPrice'])}</td>
                     <td class='{get_color_class(r['Diff'])}'>{format_price(r['Diff'])}</td>
-                    <td class='{get_color_class(parse_numeric(r['Qty']) * parse_numeric(r['Diff']))}'>
-                        {format_price(parse_numeric(r['Qty']) * parse_numeric(r['Diff']))}
+                    <td class='{get_color_class(r['TotalDiff'])}'>
+                        {format_price(r['TotalDiff'])}
                     </td>
                     <td><span class='badge {get_color_class(r['Profit'])}'>
                         {format_price(r['Profit'])} ({r['Rate']})
