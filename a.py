@@ -137,7 +137,7 @@ if df is not None:
             background: #fff;
             text-align: left;
             border-right: 1px solid rgba(0,0,0,0.05);
-            min-width: 84px;
+            min-width: 100px;
             font-weight: 700;
         }}
         .stock-table th:first-child {{ z-index: 3; }}
