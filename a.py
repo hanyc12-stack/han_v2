@@ -51,7 +51,8 @@ def fetch_data():
 df = fetch_data()
 
 if df is not None:
-    # --- 데이터 추출 및 정밀 매핑 ---
+    # 진단용 출력
+    # st.write("Brokerage 데이터 확인:", df.iloc[0:20, 11:14])
     
     # 헬퍼: V열(21)에서 항목명을 찾아 W열(22) 또는 X열(23) 값을 가져옴
     def get_summary_val(label, col_target=22):
