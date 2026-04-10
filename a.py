@@ -24,7 +24,6 @@ def parse_numeric(v):
         return float(nums[0]) if nums else 0.0
 
 def format_price(v):
-    # 숫자로 변환 가능한 경우만 콤마 포맷팅, 아니면 그대로 반환
     try:
         val = parse_numeric(v)
         if val == 0 and (pd.isna(v) or str(v).strip() in ["-", ""]):
@@ -33,12 +32,12 @@ def format_price(v):
     except:
         return "-"
 
-# 시트 설정 (GID 1550923272)
+# 1550923272 GID (대시보드 시트)
 SHEET_ID = "1WqEb6mn8eFH41mCj3BrrH_pSZMRECFR4qCHI1PmjeBg"
 GID = "1550923272" 
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-@st.cache_data(ttl=15)
+@st.cache_data(ttl=10)
 def fetch_data():
     try:
         resp = requests.get(CSV_URL)
@@ -50,17 +49,15 @@ def fetch_data():
 df = fetch_data()
 
 if df is not None:
-    # --- 데이터 추출 ---
+    # 데이터 추출
     dom = df.iloc[1:9, 0:10].copy()
     us = df.iloc[11:15, 0:10].copy()
     stocks_raw = pd.concat([dom, us])
     stocks_raw.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
     stocks = stocks_raw[stocks_raw['Name'].notna() & (stocks_raw['Name'].str.strip() != "")].copy()
 
-    # 요약 지표
     row_total = df.iloc[17]
     row_sub = df.iloc[16]
-    
     total_cnt = parse_numeric(df.iloc[7, 15]) 
     win_cnt = parse_numeric(df.iloc[7, 16])   
     loss_cnt = parse_numeric(df.iloc[7, 17])  
@@ -80,10 +77,9 @@ if df is not None:
         "cash":  parse_numeric(row_sub[3]),
         "total": parse_numeric(row_total[13]),
     }
-    
     real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
 
-    # 3. HTML/CSS 템플릿
+    # HTML/CSS 템플릿
     st.markdown(f"""
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -126,7 +122,7 @@ if df is not None:
         .bar-label {{ width: 90px; color: #888780; flex-shrink: 0; }}
         .bar-track {{ flex: 1; height: 7px; background: #ebebea; border-radius: 4px; overflow: hidden; }}
         .bar-fill {{ height: 100%; border-radius: 4px; }}
-        .bar-pct {{ width: 38px; text-align: right; font-weight: 500; }}
+        .bar-pct {{ width: 44px; text-align: right; font-weight: 500; }}
         @media (max-width: 700px) {{
           .metric-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
           .grid2 {{ grid-template-columns: 1fr; }}
@@ -188,13 +184,21 @@ if df is not None:
         </div>
 
         <div style="display:flex;flex-direction:column;gap:16px;">
+          <!-- 자산 유형별 비중 -->
           <div class="card">
             <div class="card-title">자산 유형별 비중</div>
             {''.join([f"<div class='bar-row'><div class='bar-label'>{r[15]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[17])}%;background:{'#3266AD' if r[15]=='국내주식' else '#1D9E75' if r[15]=='안전자산' else '#7F77DD' if r[15]=='해외성장' else '#D85A30'};'></div></div><div class='bar-pct'>{r[17]}</div></div>" for _, r in df.iloc[1:5, 15:18].iterrows() if not pd.isna(r[15])])}
           </div>
+
+          <!-- 증권사별 비중 추합 -->
+          <div class="card">
+            <div class="card-title">증권사별 비중</div>
+            {''.join([f"<div class='bar-row'><div class='bar-label'>{r[11]}</div><div class='bar-track'><div class='bar-fill' style='width:{parse_numeric(r[12])}%;background:#3266AD;'></div></div><div class='bar-pct'>{r[12]}</div></div>" for _, r in df.iloc[1:15, 11:13].iterrows() if not pd.isna(r[11]) and r[11] not in ["비중", "증권사"]])}
+          </div>
+          
           <div class="card" style="padding: 12px 16px;">
-            <div class="metric-label">현금 보유량</div>
-            <div class="metric-value">{int(sm['cash']):,}원</div>
+            <div class="metric-label" style="font-size:12px; color:#888780;">현금 보유량</div>
+            <div class="metric-value" style="font-size:20px; font-weight:500;">{int(sm['cash']):,}원</div>
           </div>
         </div>
       </div>
@@ -206,7 +210,7 @@ if df is not None:
     </div>
     """, unsafe_allow_html=True)
 
-    # 4. 차트 스크립트
+    # 차트 엔진
     c_stocks = stocks[stocks['Profit'] != 0].copy()
     c_stocks['Profit'] = c_stocks['Profit'].apply(parse_numeric)
     c_stocks = c_stocks.sort_values('Profit', ascending=False)
@@ -236,5 +240,3 @@ if df is not None:
       }});
     </script>
     """, height=240)
-else:
-    st.error("데이터 로딩 실패")
