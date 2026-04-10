@@ -42,9 +42,8 @@ def fetch_data():
     try:
         resp = requests.get(CSV_URL)
         resp.encoding = 'utf-8'
-        # 컬럼 유연성을 위해 재색인 적용 필요
         raw_df = pd.read_csv(io.StringIO(resp.text), header=None)
-        # 최소 25개 컬럼 보장 (U열 인덱스 20 포함)
+        # 최소 25개 컬럼 보장
         return raw_df.reindex(columns=range(max(25, raw_df.shape[1])))
     except:
         return None
@@ -56,12 +55,20 @@ if df is not None:
     # 사용자 확인 기반 매핑 (A:0, B:1, C:2, D:3, E:4, F:5, G:6, H:7, I:8, J:9)
     # 현재가:J(9), 평단가:I(8), 주당전일비:F(5), 수익금:H(7), 수익률:G(6), 비중:B(1)
     cols = [0, 1, 2, 3, 4, 7, 8, 9, 5, 6]
-    dom = df.iloc[1:9, cols].copy()
-    us = df.iloc[11:15, cols].copy()
-    stocks_raw = pd.concat([dom, us])
-    stocks_raw.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
-    # stocks 전처리: Name이 있고 공백이 아닌 것만
-    stocks = stocks_raw[stocks_raw['Name'].notna() & (stocks_raw['Name'].str.strip() != "")].copy()
+    
+    # 동적 행 추출: 고정 범위를 넓히고 불필요한 행(헤더 등) 필터링 (강원랜드 등 누락 방지)
+    exclude_keywords = ["비중", "유형", "항목", "증권사", "Total", "합계", "계", "total", "합", "종목", "Name"]
+    
+    # 국내/해외 구분 없이 넓게 가져온 후 유효한 종목명만 필터링
+    raw_stocks = df.iloc[1:60, cols].copy()
+    raw_stocks.columns = ['Name', 'Weight', 'Qty', 'CurAmt', 'BuyAmt', 'Profit', 'AvgPrice', 'CurPrice', 'Diff', 'Rate']
+    
+    stocks = raw_stocks[
+        raw_stocks['Name'].notna() & 
+        (raw_stocks['Name'].str.strip() != "") & 
+        (~raw_stocks['Name'].str.contains('|'.join(exclude_keywords), case=False)) &
+        (raw_stocks['Weight'].str.strip() != "비중")
+    ].drop_duplicates(subset=['Name']).copy()
 
     row_total = df.iloc[17]
     row_sub = df.iloc[16]
@@ -104,47 +111,58 @@ if df is not None:
             .stock-table td {{ border-color: rgba(255,255,255,0.07) !important; color: #e8e6df !important; }}
             .card-title, .metric-label, .metric-sub {{ color: #888780 !important; }}
         }}
-        .dash {{ max-width: 1250px; margin: 0 auto; padding: 12px 24px; }}
-        .header {{ display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 24px; }}
-        .header-left .total {{ font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }}
-        .metric-grid {{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }}
-        .metric-card {{ background: #ebebea; border-radius: 12px; padding: 16px; transition: all 0.2s; }}
-        .metric-label {{ font-size: 11px; color: #888780; margin-bottom: 6px; font-weight: 500; }}
-        .metric-value {{ font-size: 20px; font-weight: 700; }}
-        .metric-sub {{ font-size: 13px; margin-top: 4px; font-weight: 500; }}
+        .dash {{ max-width: 1300px; margin: 0 auto; padding: 12px 24px; }}
+        .header {{ display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 28px; }}
+        .header-left .total {{ font-size: 34px; font-weight: 700; letter-spacing: -0.8px; color: #1a1a18; }}
+        .metric-grid {{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }}
+        .metric-card {{ background: #fff; border: 1px solid rgba(0,0,0,0.05); border-radius: 16px; padding: 22px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: transform 0.2s; }}
+        .metric-card:hover {{ transform: translateY(-2px); }}
+        .metric-label {{ font-size: 13.5px; color: #888780; margin-bottom: 10px; font-weight: 500; }}
+        .metric-value {{ font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }}
+        .metric-sub {{ font-size: 14px; margin-top: 6px; font-weight: 500; }}
         .up {{ color: #D85A30 !important; }}
         .down {{ color: #3266AD !important; }}
         .flat {{ color: #888780 !important; }}
-        .card {{ background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 18px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01); }}
-        .card-title {{ font-size: 15px; font-weight: 700; color: #333; margin-bottom: 20px; }}
-        .stock-table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-        .stock-table th {{ color: #888780; font-weight: 500; padding: 8px 6px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.08); }}
-        .stock-table th:first-child {{ text-align: left; }}
-        .stock-table td {{ padding: 12px 6px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.04); }}
-        .stock-table td:first-child {{ text-align: left; font-weight: 600; color: #1a1a18; }}
-        .badge {{ display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700; }}
+        .card {{ background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 20px; padding: 32px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }}
+        .card-title {{ font-size: 18px; font-weight: 700; color: #1a1a18; margin-bottom: 28px; display: flex; align-items: center; gap: 10px; }}
+        .stock-table {{ width: 100%; border-collapse: collapse; font-size: 14.5px; }}
+        .stock-table th {{ color: #888780; font-weight: 600; padding: 14px 10px; text-align: right; border-bottom: 1.5px solid rgba(0,0,0,0.08); font-size: 13.5px; }}
+        .stock-table th:first-child {{ text-align: left; width: 180px; }}
+        .stock-table td {{ padding: 18px 10px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.04); }}
+        .stock-table td:first-child {{ text-align: left; font-weight: 700; color: #1a1a18; font-size: 15px; }}
+        .badge {{ display: inline-block; font-size: 12px; padding: 4px 12px; border-radius: 6px; font-weight: 700; }}
         .badge.up {{ background: #FAECE7; color: #D85A30; }}
         .badge.down {{ background: #E7F0FA; color: #3266AD; }}
         .badge.flat {{ background: #F0F0F0; color: #888780; }}
+        
+        /* 컬럼 너비 클래스 */
+        .col-name {{ width: 180px; }}
+        .col-weight {{ width: 80px; }}
+        .col-price {{ width: 130px; }}
+        .col-change {{ width: 140px; }}
+        .col-profit {{ width: 180px; }}
+
         @media (max-width: 1024px) {{
           .metric-grid {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
-          .stock-table {{ font-size: 12px; }}
+          .stock-table {{ font-size: 13.5px; }}
         }}
         @media (max-width: 768px) {{
           .metric-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
-          .stock-table {{ font-size: 11px; }}
+          .stock-table {{ font-size: 12.5px; }}
+          .header {{ flex-direction: column; gap: 14px; align-items: flex-start; }}
+          .header-right {{ text-align: left !important; }}
         }}
     </style>
     
     <div class="dash">
       <div class="header">
         <div class="header-left">
-          <div class="sub" style="font-size:12px; color:#888780;">총 자산 (Hstock V1.1)</div>
+          <div class="sub" style="font-size:14px; color:#888780; margin-bottom:6px;">총 자산 (Hstock V1.1)</div>
           <div class="total">{int(real_total):,}원</div>
         </div>
         <div class="header-right" style="text-align:right;">
-          <div class="sub" style="font-size:12px; color:#888780;">투자 시작일</div>
-          <div class="date" style="font-size:15px; font-weight:600;">{invest_start} <span style="color:#888780; font-weight:400; margin-left:4px;">| {invest_days}</span></div>
+          <div class="sub" style="font-size:14px; color:#888780; margin-bottom:6px;">투자 시작일</div>
+          <div class="date" style="font-size:17px; font-weight:600;">{invest_start} <span style="color:#888780; font-weight:400; margin-left:8px;">| {invest_days}</span></div>
         </div>
       </div>
 
@@ -161,17 +179,17 @@ if df is not None:
       </div>
 
       <div class="card" style="width: 100%;">
-        <div class="card-title">보유 종목 현황</div>
+        <div class="card-title">📦 보유 종목 현황</div>
         <table class="stock-table">
           <thead>
             <tr>
-              <th>종목명</th>
-              <th>비중</th>
-              <th>현재가</th>
-              <th>평단가</th>
-              <th>주당전일비</th>
-              <th>금액 전일비</th>
-              <th>수익금(수익률)</th>
+              <th class="col-name">종목명</th>
+              <th class="col-weight">비중</th>
+              <th class="col-price">현재가</th>
+              <th class="col-price">평단가</th>
+              <th class="col-change">주당전일비</th>
+              <th class="col-change">금액 전일비</th>
+              <th class="col-profit">수익금(수익률)</th>
             </tr>
           </thead>
           <tbody>
@@ -188,7 +206,7 @@ if df is not None:
                     <td><span class='badge {get_color_class(r['Profit'])}'>
                         {format_price(r['Profit'])} ({r['Rate']})
                     </span></td>
-                </tr>""" for _, r in stocks.iterrows() if r['Name'].strip() not in ["", "합계"]
+                </tr>""" for _, r in stocks.iterrows()
             ])}
           </tbody>
         </table>
