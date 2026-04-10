@@ -1,8 +1,3 @@
-`ValueError` 문제는 종목 리스트의 **'현금'** 항목처럼 현재가가 숫자가 아닌 경우(예: `-`) 발생합니다. 이를 안전하게 처리할 수 있도록 숫자인 경우만 콤마(,)를 붙이고, 그 외에는 그대로 표시하도록 수정했습니다.
-
-아래 코드를 전체 복사하여 **`a.py`**에 덮어쓰기 해주시면 에러 없이 정상적으로 작동합니다.
-
-```python
 import streamlit as st
 import pandas as pd
 import requests
@@ -243,4 +238,3 @@ if df is not None:
     """, height=240)
 else:
     st.error("데이터 로딩 실패")
-```
