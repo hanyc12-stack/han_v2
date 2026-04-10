@@ -1,3 +1,13 @@
+데이터의 정확한 위치(P12, R12)를 알려주셔서 감사합니다! 말씀하신 좌표를 반영하여 **투자 시작일**과 **투자일** 데이터가 시트의 내용과 완벽하게 일치하도록 수정했습니다.
+
+### 📍 최종 수정된 데이터 좌표
+*   **투자 시작일**: P12 셀 (`iloc[11, 15]`)
+*   **투자일 (경과일)**: R12 셀 (`iloc[11, 17]`)
+*   (참고) 기타 지표(종목수 등)도 해당 위치와의 상대적 거리를 고려하여 Row 8~9번 라인에서 정확히 가져오도록 세팅되었습니다.
+
+아래 코드를 전체 복사하여 **`a.py`**에 적용해 주세요.
+
+```python
 import streamlit as st
 import pandas as pd
 import requests
@@ -49,7 +59,7 @@ def fetch_data():
 df = fetch_data()
 
 if df is not None:
-    # --- 데이터 추출 및 정밀 매핑 ---
+    # --- 데이터 추출 및 정밀 매핑 (사용자 피드백 반영) ---
     
     # 1. 종목 리스트
     dom = df.iloc[1:9, 0:10].copy()
@@ -62,15 +72,15 @@ if df is not None:
     row_total = df.iloc[17]
     row_sub = df.iloc[16]
     
-    # 3. 상세 통계 블록 (보내주신 스크린샷 위치 반영)
+    # 3. 상세 통계 및 날짜 (P12, R12 등 사용자 지정 위치)
     total_cnt = parse_numeric(df.iloc[8, 15])     # P9: 종목수
     win_cnt = parse_numeric(df.iloc[8, 16])       # Q9: 수익 종목수
     win_p_str = str(df.iloc[9, 16])               # Q10: 수익률%
     loss_cnt = parse_numeric(df.iloc[8, 17])      # R9: 손실 종목수
     loss_p_str = str(df.iloc[9, 17])              # R10: 손실률%
     
-    invest_start = str(df.iloc[12, 15])           # P13: 투자 시작일
-    invest_days = str(df.iloc[12, 17])            # R13: 투자일(일수)
+    invest_start = str(df.iloc[11, 15])           # P12: 투자 시작일 (수정됨)
+    invest_days = str(df.iloc[11, 17])            # R12: 투자일/경과일 (수정됨)
     
     total_asset_q6 = parse_numeric(df.iloc[5, 16]) # Q6: 전체 자산 합계
 
@@ -87,7 +97,7 @@ if df is not None:
     
     real_total = sm["total"] if sm["total"] > 0 else (sm["eval"] + sm["cash"])
 
-    # 4. HTML/CSS 템플릿 (디자인 재현)
+    # 4. HTML/CSS 템플릿
     st.markdown(f"""
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -139,6 +149,7 @@ if df is not None:
     </style>
     
     <div class="dash">
+      <!-- Header -->
       <div class="header">
         <div class="header-left">
           <div class="sub" style="font-size:12px; color:#888780;">총 자산 (Hstock V1.1)</div>
@@ -150,6 +161,7 @@ if df is not None:
         </div>
       </div>
 
+      <!-- Metric Row 1 -->
       <div class="metric-grid">
         <div class="metric-card"><div class="metric-label">주식 평가금액</div><div class="metric-value">{int(sm['eval']):,}</div><div class="metric-sub">원</div></div>
         <div class="metric-card"><div class="metric-label">매수금액</div><div class="metric-value">{int(sm['buy']):,}</div><div class="metric-sub">원</div></div>
@@ -165,6 +177,7 @@ if df is not None:
         </div>
       </div>
 
+      <!-- Metric Row 2 -->
       <div class="metric-grid">
         <div class="metric-card"><div class="metric-label">총 종목수</div><div class="metric-value">{int(total_cnt)}</div><div class="metric-sub">종목</div></div>
         <div class="metric-card">
@@ -214,7 +227,7 @@ if df is not None:
     </div>
     """, unsafe_allow_html=True)
 
-    # 4. 차트 엔진
+    # 5. 차트 엔진
     c_stocks = stocks[stocks['Profit'] != 0].copy()
     c_stocks['Profit'] = c_stocks['Profit'].apply(parse_numeric)
     c_stocks = c_stocks.sort_values('Profit', ascending=False)
@@ -244,3 +257,4 @@ if df is not None:
       }});
     </script>
     """, height=240)
+```
