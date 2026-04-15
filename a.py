@@ -124,9 +124,15 @@ if df is not None:
         .card {{ background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 20px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 24px; }}
         .card-title {{ font-size: 17px; font-weight: 700; margin-bottom: 20px; }}
         .table-wrapper {{ overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }}
-        .stock-table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 800px; }}
-        .stock-table th {{ color: #888780; font-weight: 600; padding: 10px 6px; text-align: right; border-bottom: 1.5px solid rgba(0,0,0,0.08); position: sticky; top: 0; background: #fff; z-index: 1; font-size: 12px; }}
-        .stock-table td {{ padding: 12px 6px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.04); }}
+        .stock-table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 750px; }}
+        .stock-table th {{
+            color: #888780; font-weight: 600; padding: 12px 10px; text-align: right;
+            border-bottom: 2px solid rgba(0,0,0,0.10); position: sticky; top: 0;
+            background: #fafaf8; z-index: 1; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.3px;
+        }}
+        .stock-table td {{ padding: 14px 10px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.05); font-variant-numeric: tabular-nums; }}
+        .stock-table tbody tr:nth-child(even) {{ background: rgba(0,0,0,0.015); }}
+        .stock-table tbody tr:hover {{ background: rgba(0,0,0,0.04); transition: background 0.15s ease; }}
 
         /* 첫 번째 열 고정 (Sticky Column) */
         .stock-table th:first-child, 
@@ -136,15 +142,20 @@ if df is not None:
             z-index: 2;
             background: #fff;
             text-align: left;
-            border-right: 1px solid rgba(0,0,0,0.05);
-            min-width: 50px;
-            max-width: 70px;
+            border-right: 1px solid rgba(0,0,0,0.06);
+            min-width: 55px;
+            max-width: 80px;
             font-weight: 700;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }}
-        .stock-table th:first-child {{ z-index: 3; }}
+        .stock-table tbody tr:nth-child(even) td:first-child {{ background: #f8f8f6; }}
+        .stock-table tbody tr:hover td:first-child {{ background: rgba(0,0,0,0.04); }}
+        .stock-table th:first-child {{ z-index: 3; background: #fafaf8; }}
+
+        /* 주식수 열 스타일 */
+        .stock-table td:nth-child(2) {{ color: #555; font-weight: 500; }}
 
         .st-badge {{ display: inline-block; font-size: 10.5px; padding: 3px 8px; border-radius: 6px; font-weight: 700 !important; }}
         .st-badge.up {{ background: #FAECE7 !important; color: #FF5252 !important; }}
@@ -160,8 +171,15 @@ if df is not None:
             .metric-value {{ font-size: 16px; }}
             .card {{ padding: 12px; border-radius: 12px; }}
             .stock-table {{ font-size: 11.5px; }}
-            .stock-table th, .stock-table td {{ padding: 8px 4px; }}
+            .stock-table th, .stock-table td {{ padding: 10px 6px; }}
             .st-badge {{ font-size: 10px; padding: 2px 6px; }}
+        }}
+        @media (prefers-color-scheme: dark) {{
+            .stock-table th {{ background: #2a2a28 !important; }}
+            .stock-table tbody tr:nth-child(even) {{ background: rgba(255,255,255,0.02); }}
+            .stock-table tbody tr:hover {{ background: rgba(255,255,255,0.05); }}
+            .stock-table tbody tr:nth-child(even) td:first-child {{ background: #282826 !important; }}
+            .stock-table tbody tr:hover td:first-child {{ background: rgba(255,255,255,0.05) !important; }}
         }}
     </style>
     
@@ -183,26 +201,26 @@ if df is not None:
         <div class="card-title">📦 보유 종목 현황</div>
         <div class="table-wrapper">
           <table class="stock-table">
-            <thead><tr><th style="text-align:left;">종목명</th><th>비중</th><th>현재가</th><th>평단가</th><th>주당전일비</th><th>금액전일비</th><th>수익금(수익률)</th></tr></thead>
+            <thead><tr><th style="text-align:left;">종목명</th><th>주식수</th><th>현재가</th><th>평단가</th><th>주당전일비</th><th>금액전일비</th><th>수익금(수익률)</th></tr></thead>
             <tbody>
               {''.join([
                   f"""<tr>
                       <td>{r['Name']}</td>
-                      <td>{r['Weight']}</td>
+                      <td>{format_price(r['Qty'])}</td>
                       <td>{format_price(r['CurPrice'])}</td>
                       <td>{format_price(r['AvgPrice'])}</td>
                       <td>
-                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10px; background:{'#FAECE7' if parse_numeric(r['Diff']) > 0 else '#E7F0FA' if parse_numeric(r['Diff']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['Diff']) > 0 else '#448AFF' if parse_numeric(r['Diff']) < 0 else '#888780'};">
+                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10.5px; background:{'#FAECE7' if parse_numeric(r['Diff']) > 0 else '#E7F0FA' if parse_numeric(r['Diff']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['Diff']) > 0 else '#448AFF' if parse_numeric(r['Diff']) < 0 else '#888780'};">
                               {format_price(r['Diff'])}
                           </div>
                       </td>
                       <td>
-                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10px; background:{'#FAECE7' if parse_numeric(r['TotalDiff']) > 0 else '#E7F0FA' if parse_numeric(r['TotalDiff']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['TotalDiff']) > 0 else '#448AFF' if parse_numeric(r['TotalDiff']) < 0 else '#888780'};">
+                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10.5px; background:{'#FAECE7' if parse_numeric(r['TotalDiff']) > 0 else '#E7F0FA' if parse_numeric(r['TotalDiff']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['TotalDiff']) > 0 else '#448AFF' if parse_numeric(r['TotalDiff']) < 0 else '#888780'};">
                               {format_price(r['TotalDiff'])}
                           </div>
                       </td>
                       <td>
-                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10px; background:{'#FAECE7' if parse_numeric(r['Profit']) > 0 else '#E7F0FA' if parse_numeric(r['Profit']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['Profit']) > 0 else '#448AFF' if parse_numeric(r['Profit']) < 0 else '#888780'};">
+                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10.5px; background:{'#FAECE7' if parse_numeric(r['Profit']) > 0 else '#E7F0FA' if parse_numeric(r['Profit']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['Profit']) > 0 else '#448AFF' if parse_numeric(r['Profit']) < 0 else '#888780'};">
                               {format_price(r['Profit'])} ({r['Rate']})
                           </div>
                       </td>
