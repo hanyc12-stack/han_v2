@@ -158,9 +158,13 @@ if df is not None:
         .stock-table td:nth-child(2) {{ color: #555; font-weight: 500; }}
 
         .st-badge {{ display: inline-block; font-size: 10.5px; padding: 3px 8px; border-radius: 6px; font-weight: 700 !important; }}
-        .st-badge.up {{ background: #FAECE7 !important; color: #FF5252 !important; }}
-        .st-badge.down {{ background: #E7F0FA !important; color: #448AFF !important; }}
+        .st-badge.up {{ background: #FAECE7 !important; color: #E53935 !important; }}
+        .st-badge.down {{ background: #E7F0FA !important; color: #1E88E5 !important; }}
         .st-badge.flat {{ background: #F0F0F0 !important; color: #888780 !important; }}
+        
+        .up {{ color: #E53935 !important; font-weight: 700 !important; }}
+        .down {{ color: #1E88E5 !important; font-weight: 700 !important; }}
+        .flat {{ color: #888780 !important; }}
 
         /* 모바일 최적화 */
         @media (max-width: 600px) {{
@@ -209,20 +213,14 @@ if df is not None:
                       <td>{format_price(r['Qty'])}</td>
                       <td>{format_price(r['CurPrice'])}</td>
                       <td>{format_price(r['AvgPrice'])}</td>
-                      <td>
-                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10.5px; background:{'#FAECE7' if parse_numeric(r['Diff']) > 0 else '#E7F0FA' if parse_numeric(r['Diff']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['Diff']) > 0 else '#448AFF' if parse_numeric(r['Diff']) < 0 else '#888780'};">
-                              {format_price(r['Diff'])}
-                          </div>
+                      <td class="{get_color_class(r['Diff'])}">
+                          {format_price(r['Diff'])}
                       </td>
-                      <td>
-                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10.5px; background:{'#FAECE7' if parse_numeric(r['TotalDiff']) > 0 else '#E7F0FA' if parse_numeric(r['TotalDiff']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['TotalDiff']) > 0 else '#448AFF' if parse_numeric(r['TotalDiff']) < 0 else '#888780'};">
-                              {format_price(r['TotalDiff'])}
-                          </div>
+                      <td class="{get_color_class(r['TotalDiff'])}">
+                          {format_price(r['TotalDiff'])}
                       </td>
-                      <td>
-                          <div style="display:inline-block; padding:3px 8px; border-radius:6px; font-weight:700; font-size:10.5px; background:{'#FAECE7' if parse_numeric(r['Profit']) > 0 else '#E7F0FA' if parse_numeric(r['Profit']) < 0 else '#F0F0F0'}; color:{'#FF5252' if parse_numeric(r['Profit']) > 0 else '#448AFF' if parse_numeric(r['Profit']) < 0 else '#888780'};">
-                              {format_price(r['Profit'])} ({r['Rate']})
-                          </div>
+                      <td class="{get_color_class(r['Profit'])}">
+                          {format_price(r['Profit'])} ({r['Rate']})
                       </td>
                   </tr>""" for _, r in stocks.iterrows()
               ])}
